@@ -458,6 +458,14 @@ a.il:hover{color:var(--brand)}
     <p class="small" id="finderInfo" style="margin-top:12px"></p>
   </div>
   <div class="card">
+    <h2>Sync report</h2>
+    <p class="muted small">A plain-text record of every call to the sheet: how long it took, timeouts, refused or failed saves, retries. Copy it and paste it where you need it. Reading it does not affect saving.</p>
+    <div class="row"><select id="srRange"><option value="1">Last hour</option><option value="24" selected>Last 24 hours</option><option value="168">Last 7 days</option><option value="0">Everything kept</option></select>
+      <label class="small"><input type="checkbox" id="srAll"> include successful calls</label>
+      <button class="b p" id="srCopy">Copy report</button><button class="b" id="srClear">Clear log</button><span id="srMsg" class="small"></span></div>
+    <textarea id="srText" readonly spellcheck="false" style="width:100%;height:260px;margin-top:8px;font:12px/1.4 ui-monospace,Consolas,monospace;white-space:pre"></textarea>
+  </div>
+  <div class="card">
     <h2>Category order</h2>
     <p class="muted small" id="catOrderInfo"></p>
     <p class="muted small">Drag a category, or use ↑ ↓, then save. The order is stored in the sheet, so every PC shows the same.</p>
@@ -479,7 +487,7 @@ a.il:hover{color:var(--brand)}
 
 <script>
 'use strict';
-const VERSION = 'v1.7.0';
+const VERSION = 'v1.8.0';
 const LOCS = ['WH', 'BB1', 'BB2'];
 const IN_TYPES = ['Purchase', 'Return', 'Production', 'Stock Correction', 'Opening balance'];
 const OUT_TYPES = ['Sales', 'Usage', 'Stock correction'];
@@ -525,11 +533,46 @@ function maskDate(inp) {
 }
 
 /* ───────── API ───────── */
+/* Sync log: passive record of every call to the sheet (for the copy-paste Sync report in Settings).
+   It only watches; it never changes, delays or retries a call. */
+const SYNCLOG = {
+  KEY: 'imsEntry.synclog', MAX: 400, SLOW: 15000, items: [], live: new Map(), seq: 0, timer: null,
+  load() { try { this.items = JSON.parse(localStorage.getItem(this.KEY) || '[]'); } catch (e) { this.items = []; } },
+  save() { clearTimeout(this.timer); this.timer = setTimeout(() => { try { localStorage.setItem(this.KEY, JSON.stringify(this.items)); } catch (e) {} }, 2000); },
+  add(o) { try { o.t = o.t || Date.now(); this.items.push(o); if (this.items.length > this.MAX) this.items.splice(0, this.items.length - this.MAX); this.save(); } catch (e) {} },
+  clear() { this.items = []; try { localStorage.removeItem(this.KEY); } catch (e) {} }
+};
+SYNCLOG.load();
+window.addEventListener('pagehide', () => { try { localStorage.setItem(SYNCLOG.KEY, JSON.stringify(SYNCLOG.items)); } catch (e) {} });
+window.addEventListener('error', e => SYNCLOG.add({ k: 'js', msg: String(e.message || e).slice(0, 200) }));
+window.addEventListener('unhandledrejection', e => SYNCLOG.add({ k: 'js', msg: ('promise: ' + (e.reason && e.reason.message || e.reason)).slice(0, 200) }));
+window.addEventListener('online', () => SYNCLOG.add({ k: 'net', msg: 'browser went online' }));
+window.addEventListener('offline', () => SYNCLOG.add({ k: 'net', msg: 'browser went offline' }));
+
 async function api(action, extra) {
   if (!S.url || !S.key) throw new Error('Sign in with your name and password first');
-  const res = await fetch(S.url, { method: 'POST', body: JSON.stringify(Object.assign({ key: S.key, user: S.user, action }, extra || {})) });
-  const j = await res.json();
-  return j;
+  const id = ++SYNCLOG.seq, t0 = performance.now();
+  const bs = extra && extra.batches;
+  const info = { k: 'call', a: action, n: bs ? bs.length : 0, rows: bs ? bs.reduce((s, b) => s + (b.rows ? b.rows.length : 0), 0) : 0, tries: action === 'saveMany' ? OB.tries : 0 };
+  if (bs) info.cids = bs.map(b => String(b.cid).slice(-6)).join(',');
+  SYNCLOG.live.set(id, { a: action, t: Date.now(), p: t0 });
+  let out = 'ok', msg = '', http = '';
+  try {
+    const res = await fetch(S.url, { method: 'POST', body: JSON.stringify(Object.assign({ key: S.key, user: S.user, action }, extra || {})) });
+    http = res.status;
+    let j;
+    try { j = await res.json(); } catch (e) { out = 'badreply'; msg = 'HTTP ' + res.status + ' but the answer was not JSON (Apps Script error page or timeout)'; throw e; }
+    if (j && j.ok === false) { out = 'refused'; msg = String(j.error || '').slice(0, 200); }
+    else if (bs && j && j.results) { const bad = j.results.filter(r => !r.ok); if (bad.length) { out = 'partial'; msg = bad.map(r => String(r.cid).slice(-6) + ': ' + (r.dup ? 'duplicate' : r.error)).join(' | ').slice(0, 300); } }
+    return j;
+  } catch (e) {
+    if (out === 'ok') { out = 'network'; msg = String(e && e.message || e).slice(0, 200); }
+    throw e;
+  } finally {
+    SYNCLOG.live.delete(id);
+    const ms = Math.round(performance.now() - t0);
+    SYNCLOG.add(Object.assign(info, { ms, out, msg, http, slow: ms >= SYNCLOG.SLOW ? 1 : 0, t: Date.now() - ms }));
+  }
 }
 function setConn(state, text) { const c = $('conn'); c.className = state; c.textContent = text; }
 
@@ -1057,7 +1100,11 @@ async function obSync() {
     if (/wrong password/i.test(e.message)) { OB.busy = false; obStore(); obRender(); $('gMsg').textContent = e.message; $('gate').hidden = false; return; }
   }
   OB.busy = false; obStore(); obRender(); if (S.stats) renderDash();
-  if (OB.items.some(i => i.state === 'waiting')) OB.timer = setTimeout(obSync, OB.tries ? Math.min(60000, 3000 * Math.pow(2, OB.tries - 1)) : 100);
+  if (OB.items.some(i => i.state === 'waiting')) {
+    const wait = OB.tries ? Math.min(60000, 3000 * Math.pow(2, OB.tries - 1)) : 100;
+    if (OB.tries) SYNCLOG.add({ k: 'retry', msg: 'attempt ' + OB.tries + ' failed (' + OB.lastErr + '), next try in ' + Math.round(wait / 1000) + 's', n: OB.items.filter(i => i.state === 'waiting').length });
+    OB.timer = setTimeout(obSync, wait);
+  }
   else if (!OB.items.length) { clearTimeout(OB.refreshTimer); OB.refreshTimer = setTimeout(() => { if (!OB.items.length && !OB.busy) loadAll({ quiet: true }); }, 15000); }
 }
 
@@ -1083,6 +1130,7 @@ function obRender() {
       (i.state !== 'sending' ? '<button class="b d" data-ob="remove" data-cid="' + i.cid + '">' + (i.dataset_sure === i.cid ? 'Tap again to remove' : 'Remove') + '</button>' : '') + '</div></div>';
   });
   if (OB.items.some(i => i.state === 'waiting')) h += '<p><button class="b" data-ob="now">Send now</button></p>';
+  h += '<p class="small"><a href="#" data-ob="report">Open sync report</a></p>';
   pn.innerHTML = h;
 }
 document.addEventListener('click', e => {
@@ -1092,6 +1140,7 @@ document.addEventListener('click', e => {
   const b = t.closest('[data-ob]'); if (!b) return;
   const it = OB.items.find(i => i.cid === b.dataset.cid);
   const a = b.dataset.ob;
+  if (a === 'report') { e.preventDefault(); $('obPanel').hidden = true; showTab('set'); return; }
   if (a === 'now') { OB.tries = 0; obSync(); return; }
   if (!it) return;
   if (a === 'retry') { it.state = 'waiting'; it.error = ''; }
@@ -1105,6 +1154,52 @@ document.addEventListener('click', e => {
 window.addEventListener('online', () => { OB.tries = 0; obSync(); });
 window.addEventListener('beforeunload', e => { if (OB.items.some(i => i.state === 'waiting' || i.state === 'sending')) { e.preventDefault(); e.returnValue = ''; } });
 obLoad();
+
+/* ───────── Sync report (read-only view of SYNCLOG) ───────── */
+function srStamp(t) { const d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+function srBuild() {
+  const hrs = +$('srRange').value, all = $('srAll').checked, now = Date.now();
+  const rows = SYNCLOG.items.filter(e => !hrs || e.t >= now - hrs * 3600000);
+  const calls = rows.filter(e => e.k === 'call');
+  const okc = calls.filter(e => e.out === 'ok'), bad = calls.filter(e => e.out !== 'ok'), slow = calls.filter(e => e.slow);
+  const L = [];
+  L.push('IMS ENTRY · SYNC REPORT');
+  L.push('Created: ' + srStamp(now) + ' · tool ' + VERSION + ' · user: ' + (S.user || '-') + ' · browser ' + (navigator.onLine ? 'online' : 'OFFLINE'));
+  L.push('Sheet script: ' + (S.url ? '…' + S.url.slice(-24) : '-') + ' · period: ' + (hrs ? 'last ' + hrs + ' h' : 'everything kept') + (SYNCLOG.items.length ? ' (log starts ' + srStamp(SYNCLOG.items[0].t) + ')' : ''));
+  L.push('');
+  const live = [...SYNCLOG.live.values()];
+  L.push('NOW');
+  L.push('  Outbox: ' + OB.items.length + ' item(s) — ' + ['waiting', 'sending', 'error', 'dup'].map(s => s + ' ' + OB.items.filter(i => i.state === s).length).join(', ') + ' · retry count ' + OB.tries + (OB.lastErr ? ' · last error: ' + OB.lastErr : ''));
+  OB.items.forEach(i => L.push('    - ' + i.cid.slice(-6) + ' ' + i.label + ' · ' + i.rowsN + ' rows · ' + i.state + (i.error ? ' · ' + i.error : '') + ' · saved ' + i.created));
+  L.push('  Calls in flight: ' + (live.length ? live.map(c => c.a + ' ' + Math.round((performance.now() - c.p) / 1000) + 's so far').join(', ') : 'none'));
+  L.push('');
+  L.push('SUMMARY');
+  L.push('  Calls: ' + calls.length + ' · ok ' + okc.length + ' · problems ' + bad.length + ' · slow (≥ ' + SYNCLOG.SLOW / 1000 + 's) ' + slow.length);
+  const byOut = {}; bad.forEach(e => { byOut[e.out] = (byOut[e.out] || 0) + 1; });
+  if (bad.length) L.push('  Problems by kind: ' + Object.entries(byOut).map(([k, v]) => k + ' ' + v).join(', ') + '   (network = no answer/timeout, badreply = Apps Script error page, refused = sheet said no, partial = some saves in a batch refused)');
+  const acts = {}; calls.forEach(e => { (acts[e.a] = acts[e.a] || []).push(e.ms); });
+  Object.entries(acts).forEach(([a, v]) => { v.sort((x, y) => x - y); L.push('  ' + a.padEnd(9) + ' ' + String(v.length).padStart(4) + ' calls · median ' + v[Math.floor(v.length / 2)] + ' ms · slowest ' + v[v.length - 1] + ' ms'); });
+  const js = rows.filter(e => e.k === 'js').length, rt = rows.filter(e => e.k === 'retry').length;
+  L.push('  Retries scheduled: ' + rt + ' · browser script errors: ' + js);
+  L.push('');
+  const ev = rows.filter(e => all || e.k !== 'call' || e.out !== 'ok' || e.slow);
+  L.push('EVENTS (' + (all ? 'all' : 'problems, slow calls, retries, errors') + ') — ' + ev.length);
+  if (!ev.length) L.push('  none');
+  ev.forEach(e => {
+    if (e.k === 'call') L.push('  ' + srStamp(e.t) + '  ' + e.a.padEnd(9) + ' ' + (e.out === 'ok' ? 'OK     ' : e.out.toUpperCase().padEnd(7)) + ' ' + String(e.ms).padStart(6) + ' ms' + (e.slow ? ' SLOW' : '') + (e.n ? ' · ' + e.n + ' save(s), ' + e.rows + ' rows [' + e.cids + ']' : '') + (e.tries ? ' · retry #' + e.tries : '') + (e.http ? ' · HTTP ' + e.http : '') + (e.msg ? ' · ' + e.msg : ''));
+    else L.push('  ' + srStamp(e.t) + '  ' + (e.k === 'retry' ? 'RETRY   ' : e.k === 'net' ? 'NETWORK ' : 'JS ERROR') + '  ' + e.msg);
+  });
+  return L.join('\n');
+}
+function srRender() { const t = $('srText'); if (t) t.value = srBuild(); }
+['srRange', 'srAll'].forEach(id => $(id).addEventListener('change', srRender));
+$('srCopy').onclick = async () => {
+  srRender(); const t = $('srText'), m = $('srMsg');
+  try { await navigator.clipboard.writeText(t.value); m.innerHTML = '<span class="tag t-ok">Copied</span>'; }
+  catch (e) { t.focus(); t.select(); try { document.execCommand('copy'); m.innerHTML = '<span class="tag t-ok">Copied</span>'; } catch (x) { m.innerHTML = '<span class="tag t-warn">Select the text and press Ctrl+C</span>'; } }
+  setTimeout(() => { m.innerHTML = ''; }, 3000);
+};
+$('srClear').onclick = () => { SYNCLOG.clear(); srRender(); };
 
 function aliasesFrom(rows) {
   return rows.filter(r => !r.skip && r.prod && r.src && norm(r.src) !== norm(r.prod)).map(r => ({ src: r.src, prod: r.prod }));
@@ -1656,6 +1751,7 @@ function showTab(t) {
   document.title = TITLES[t][0] + ' · IMS Stock Entry';
   document.body.classList.remove('drawer');
   if (S.an && RENDER[t] && t !== 'dash') { if (!S.stats) computeStats(); RENDER[t](); }
+  if (t === 'set') srRender();
 }
 $('nav').addEventListener('click', e => {
   const b = e.target.closest('a[data-t]'); if (!b) return;
