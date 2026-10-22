@@ -1,0 +1,1205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IMS Stock Entry</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Galvanized steel palette — light */
+:root{
+  --bg:#eef1f3;--card:#ffffff;--ink:#17212b;--muted:#5b6874;--line:#d6dde3;--line2:#e7ecef;
+  --brand:#0f6a73;--brand-ink:#ffffff;--soft:#e2f0f1;
+  --side:#16232e;--side-ink:#dbe5ec;--side-muted:#8597a6;--side-hi:#223443;--side-mesh:rgba(255,255,255,.045);
+  --ok:#1d7a46;--ok-bg:#e1f3e8;--warn:#8a5d00;--warn-bg:#fff1cc;--bad:#b42318;--bad-bg:#fde6e3;
+  --info-bg:#e5edf8;--info:#2b4f86;--tape:#e3a613;
+  --shadow:0 1px 2px rgba(22,35,46,.06),0 2px 8px rgba(22,35,46,.04);
+  color-scheme:light;
+}
+/* dark tokens: system dark (unless forced light) or forced dark */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f151b;--card:#17202a;--ink:#e4eaef;--muted:#93a1ad;--line:#2a3640;--line2:#222d37;
+    --brand:#3fb6bf;--brand-ink:#06191b;--soft:#16323a;
+    --side:#0b1116;--side-ink:#d5dfe7;--side-muted:#7d8d9a;--side-hi:#18242e;--side-mesh:rgba(255,255,255,.035);
+    --ok:#6fd39a;--ok-bg:#173426;--warn:#f0c24b;--warn-bg:#3a3016;--bad:#ff8b80;--bad-bg:#3d1f1c;--info-bg:#1b2840;--info:#9db8ff;
+    --shadow:none;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f151b;--card:#17202a;--ink:#e4eaef;--muted:#93a1ad;--line:#2a3640;--line2:#222d37;
+  --brand:#3fb6bf;--brand-ink:#06191b;--soft:#16323a;
+  --side:#0b1116;--side-ink:#d5dfe7;--side-muted:#7d8d9a;--side-hi:#18242e;--side-mesh:rgba(255,255,255,.035);
+  --ok:#6fd39a;--ok-bg:#173426;--warn:#f0c24b;--warn-bg:#3a3016;--bad:#ff8b80;--bad-bg:#3d1f1c;--info-bg:#1b2840;--info:#9db8ff;
+  --shadow:none;color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.app{display:flex;min-height:100vh}
+
+/* ── sidebar ── */
+#side{position:sticky;top:0;height:100vh;width:248px;flex:0 0 248px;background:var(--side);color:var(--side-ink);display:flex;flex-direction:column;
+  background-image:linear-gradient(var(--side-mesh) 1px,transparent 1px),linear-gradient(90deg,var(--side-mesh) 1px,transparent 1px);background-size:22px 22px;
+  transition:width .18s ease,flex-basis .18s ease;z-index:20;overflow:hidden}
+.side-top{display:flex;align-items:center;gap:10px;padding:14px 14px 12px}
+.burger{flex:0 0 40px;height:40px;border:0;border-radius:10px;background:transparent;color:var(--side-ink);cursor:pointer;display:grid;place-items:center}
+.burger:hover{background:var(--side-hi)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{flex:0 0 30px}
+.brand b{display:block;font-size:15px;line-height:1.15;white-space:nowrap}
+.brand small{display:block;font-size:11.5px;color:var(--side-muted);white-space:normal;line-height:1.3}
+.snav{flex:1;overflow-y:auto;padding:6px 10px}
+.snav a{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:10px;color:var(--side-ink);text-decoration:none;white-space:nowrap;cursor:pointer;font-weight:500}
+.snav a:hover{background:var(--side-hi)}
+.snav a.on{background:var(--side-hi);box-shadow:inset 3px 0 0 var(--tape)}
+.snav a svg{flex:0 0 20px;opacity:.9}
+.snav .sub{margin:2px 0 6px 21px;padding-left:12px;border-left:1px solid rgba(255,255,255,.12)}
+.snav .sub a{padding:6px 10px;font-weight:400;font-size:13.5px;color:var(--side-muted)}
+.snav .sub a.on{color:var(--side-ink);background:var(--side-hi);box-shadow:none}
+.snav .chev{margin-left:auto;transition:transform .15s}
+.snav .grp.closed .chev{transform:rotate(-90deg)}
+.snav .grp.closed + .sub{display:none}
+.side-foot{padding:12px 16px 16px;font-size:11.5px;color:var(--side-muted);border-top:1px solid rgba(255,255,255,.08);white-space:nowrap}
+.side-foot b{color:var(--side-ink);font-weight:600}
+body.collapsed #side{width:68px;flex-basis:68px}
+body.collapsed .brand,body.collapsed .snav .lbl,body.collapsed .snav .sub,body.collapsed .snav .chev,body.collapsed .side-foot .lbl{display:none}
+body.collapsed .snav a{justify-content:center;padding:10px 0}
+body.collapsed .side-foot{text-align:center;padding:12px 4px}
+
+/* ── top bar ── */
+.mainwrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:12px;padding:18px 28px 14px;flex-wrap:wrap}
+.top .mburger{display:none;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.top h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.top p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.top .sp{flex:1}
+#conn{font-size:12.5px;padding:5px 11px;border-radius:99px;background:var(--line2);color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+#conn::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+#conn.ok{background:var(--ok-bg);color:var(--ok)} #conn.bad{background:var(--bad-bg);color:var(--bad)}
+.iconbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;display:grid;place-items:center}
+.iconbtn:hover{border-color:var(--brand)}
+#subnav{display:none;gap:6px;overflow-x:auto;padding:0 28px 6px}
+body.collapsed.entries #subnav{display:flex}
+#subnav button{border:1px solid var(--line);background:var(--card);padding:5px 13px;border-radius:99px;color:var(--ink);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+#subnav button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+main{width:100%;max-width:1240px;padding:6px 28px 40px}
+.tab{display:none}.tab.on{display:block}
+
+/* ── content ── */
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card h2{font-size:15.5px;font-weight:600;margin:0 0 4px}
+.card h2 + p{margin-top:0}
+.card h3{font-size:13.5px;font-weight:600;margin:18px 0 6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+label{font-size:13px;color:var(--muted)}
+label input,label select{color:var(--ink)}
+button.b{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:9px;font:inherit;font-weight:500;cursor:pointer}
+button.b:hover{border-color:var(--brand)}
+button.p{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
+button.p:hover{filter:brightness(1.08)}
+button.d{color:var(--bad);border-color:var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:transparent}
+textarea{width:100%;min-height:120px;resize:vertical}
+code{font-size:12.5px;background:var(--line2);padding:1px 5px;border-radius:5px}
+.date{width:120px;font-variant-numeric:tabular-nums}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:28px 16px;text-align:center;cursor:pointer;color:var(--muted);margin-top:12px;
+  background-image:linear-gradient(var(--line2) 1px,transparent 1px),linear-gradient(90deg,var(--line2) 1px,transparent 1px);background-size:18px 18px}
+.drop b{display:block;color:var(--ink);font-weight:600;margin-bottom:2px}
+.drop.hover{border-color:var(--brand);background-color:var(--soft)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--line2);padding:8px 8px;text-align:left;vertical-align:middle}
+th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;border-bottom-color:var(--line)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:hover td{background:color-mix(in srgb,var(--soft) 45%,transparent)}
+tr.grp td{background:var(--soft);font-weight:600;color:var(--brand)}
+tr.skip td{opacity:.45}
+.pin{width:100%;min-width:210px}
+.pin.bad{border-color:var(--bad);background:var(--bad-bg)}
+.q{width:84px;text-align:right;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.t-ok{background:var(--ok-bg);color:var(--ok)} .t-warn{background:var(--warn-bg);color:var(--warn)}
+.t-bad{background:var(--bad-bg);color:var(--bad)} .t-info{background:var(--info-bg);color:var(--info)}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+.chip{font:inherit;font-size:11.5px;border:1px solid var(--line);border-radius:99px;padding:2px 9px;background:var(--card);cursor:pointer;color:var(--ink)}
+.chip:hover{border-color:var(--brand)}
+.chip.new{border-style:dashed;color:var(--brand)}
+.newp{margin-top:6px;padding:10px;border:1px dashed var(--brand);border-radius:10px;background:var(--soft);display:grid;gap:6px}
+.newp .row input{flex:1;min-width:140px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:transparent;padding:5px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink);border-right:1px solid var(--line);white-space:nowrap}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
+.seg button small{opacity:.75;font-variant-numeric:tabular-nums}
+.seg button.short{box-shadow:inset 0 -3px 0 var(--bad)}
+.msg{padding:10px 13px;border-radius:9px;margin:8px 0;white-space:pre-line}
+.msg.ok{background:var(--ok-bg);color:var(--ok)} .msg.bad{background:var(--bad-bg);color:var(--bad)}
+.msg.warn{background:var(--warn-bg);color:var(--warn)} .msg.info{background:var(--info-bg);color:var(--info)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;cursor:pointer;box-shadow:var(--shadow);border-top:3px solid var(--line)}
+.stat:hover{border-color:var(--brand)}
+.stat .v{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.2}
+.stat .v.date{font-size:20px;width:auto}
+.stat .l{font-weight:600;font-size:13px}
+.stat .s{color:var(--muted);font-size:12px}
+.stat.bad{border-top-color:var(--bad)} .stat.bad .v{color:var(--bad)}
+.stat.ok{border-top-color:var(--ok)} .stat.ok .v{color:var(--ok)}
+.stat.warn{border-top-color:var(--tape)} .stat.warn .v{color:var(--warn)}
+.checks div{margin:4px 0}
+.sticky-save{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:12px 0 2px;margin-top:12px}
+.hist td{font-size:12px}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px}
+.x:hover{color:var(--bad)}
+.scrim{display:none}
+@media (max-width:820px){
+  #side{position:fixed;left:0;top:0;transform:translateX(-100%);transition:transform .2s ease;width:264px;flex-basis:264px;box-shadow:0 0 40px rgba(0,0,0,.3)}
+  body.collapsed #side{width:264px}
+  body.collapsed .brand,body.collapsed .snav .lbl,body.collapsed .snav .sub,body.collapsed .snav .chev,body.collapsed .side-foot .lbl{display:revert}
+  body.collapsed .snav a{justify-content:flex-start;padding:9px 10px}
+  body.drawer #side{transform:none}
+  body.drawer .scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:15}
+  .side-top .burger{display:none}
+  .top{padding:12px 14px 10px}
+  .top .mburger{display:grid}
+  .top h1{font-size:19px}
+  main{padding:4px 12px 30px}
+  #subnav{padding:0 12px 6px}
+  .card{padding:13px}
+  .pin{min-width:160px}
+}
+#gate{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:var(--side);
+  background-image:linear-gradient(var(--side-mesh) 1px,transparent 1px),linear-gradient(90deg,var(--side-mesh) 1px,transparent 1px);background-size:22px 22px}
+#gate[hidden]{display:none}
+.gate-card{width:100%;max-width:360px;background:var(--card);border-radius:16px;padding:28px 24px;display:grid;gap:12px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.gate-card h1{margin:4px 0 0;font-size:21px}
+.gate-card p{margin:0 0 6px;color:var(--muted);font-size:13px}
+.gate-card label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.gate-card input{font-size:15px;padding:10px 11px}
+.gate-card button{padding:11px;font-size:15px;margin-top:4px}
+#gMsg{color:var(--bad);min-height:18px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-burger" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="i-dash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="8" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="14.5" width="7" height="6" rx="1.5"/></g></symbol>
+  <symbol id="i-entry" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4v-1h6v1M8.5 10h7M8.5 14h7M8.5 18h4"/></g></symbol>
+  <symbol id="i-neg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></g></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></g></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M5.2 18.8l1.4-1.4M17.4 6.6l1.4-1.4"/></g></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/></g></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.6-4.4L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.6 4.4L20 16"/><path d="M20 20.5V16h-4.5"/></g></symbol>
+</svg>
+<div id="gate" hidden>
+  <form class="gate-card" id="gateForm" autocomplete="on">
+    <svg width="44" height="44" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="7" fill="#0f6a73"/><g stroke="#e3a613" stroke-width="1.6"><path d="M10 6v18M15 6v18M20 6v18M6 10h18M6 15h18M6 20h18"/></g></svg>
+    <h1>IMS Stock Entry</h1>
+    <p>Jain Wire Netting, Angamaly</p>
+    <label>Your name<input id="gUser" autocomplete="name" required></label>
+    <label>Password<input id="gKey" type="password" autocomplete="current-password" required></label>
+    <button class="b p" type="submit" id="gGo">Start</button>
+    <div id="gMsg" class="small"></div>
+  </form>
+</div>
+<div class="app">
+<aside id="side" aria-label="Main menu">
+  <div class="side-top">
+    <button class="burger" id="burger" title="Collapse / expand menu" aria-label="Collapse or expand menu"><svg width="22" height="22"><use href="#i-burger"/></svg></button>
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="7" fill="#0f6a73"/><g stroke="#e3a613" stroke-width="1.6"><path d="M10 6v18M15 6v18M20 6v18M6 10h18M6 15h18M6 20h18"/></g></svg>
+      <span><b>IMS Stock Entry</b><small>Jain Wire Netting, Angamaly</small></span>
+    </div>
+  </div>
+  <nav class="snav" id="nav">
+    <a data-t="dash" class="on"><svg width="20" height="20"><use href="#i-dash"/></svg><span class="lbl">Dashboard</span></a>
+    <a data-t="entries" class="grp"><svg width="20" height="20"><use href="#i-entry"/></svg><span class="lbl">IMS entries</span><svg class="chev" width="16" height="16"><use href="#i-chev"/></svg></a>
+    <div class="sub" id="subside">
+      <a data-t="prod">Production file</a>
+      <a data-t="load">Loading list</a>
+      <a data-t="quick">Quick entry</a>
+      <a data-t="xfer">Godown transfer</a>
+    </div>
+    <a data-t="neg"><svg width="20" height="20"><use href="#i-neg"/></svg><span class="lbl">Negative stock</span></a>
+    <a data-t="set"><svg width="20" height="20"><use href="#i-set"/></svg><span class="lbl">Settings</span></a>
+  </nav>
+  <div class="side-foot"><span class="lbl">Signed in as <b id="whoName"></b><br></span><b id="ver"></b></div>
+</aside>
+<div class="scrim" id="scrim"></div>
+<div class="mainwrap">
+  <header class="top">
+    <button class="iconbtn mburger" id="mburger" aria-label="Open menu"><svg width="20" height="20"><use href="#i-burger"/></svg></button>
+    <div><h1 id="pageTitle">Dashboard</h1><p id="pageSub"></p></div>
+    <span class="sp"></span>
+    <span id="conn">Not connected</span>
+    <button class="iconbtn" id="refresh" title="Reload data from the sheet" aria-label="Reload data"><svg width="18" height="18"><use href="#i-refresh"/></svg></button>
+    <button class="iconbtn" id="themeBtn" title="Theme" aria-label="Change theme"><svg width="18" height="18"><use id="themeIcon" href="#i-auto"/></svg></button>
+  </header>
+  <div id="subnav">
+    <button data-s="prod">Production file</button>
+    <button data-s="load">Loading list</button>
+    <button data-s="quick">Quick entry</button>
+    <button data-s="xfer">Godown transfer</button>
+  </div>
+<main>
+
+<!-- DASHBOARD -->
+<section class="tab on" id="t-dash">
+  <div id="dashBody"><div class="card muted">Connect the tool in Settings to see the dashboard.</div></div>
+</section>
+
+<!-- PRODUCTION -->
+<section class="tab" id="t-prod">
+  <div class="card">
+    <h2>Upload the day's production file</h2>
+    <p class="muted small">Every item line is added to STOCK IN as type Production, at BB1 or BB2 as in the file.</p>
+    <div class="drop" id="prodDrop"><b>Drop the Production .xlsx here</b>or click to choose a file<input type="file" id="prodFile" accept=".xlsx,.xls" hidden></div>
+    <div id="prodMsg"></div>
+  </div>
+  <div class="card" id="prodCard" hidden>
+    <div class="row"><b id="prodTitle"></b><span class="sp"></span>
+      <label>Date <input class="date" id="prodDate" placeholder="dd-mm-yyyy" inputmode="numeric"></label></div>
+    <div class="checks" id="prodChecks"></div>
+    <div class="row" style="margin:8px 0"><button class="b" id="prodConfirmAll">Accept all suggested names</button><span class="muted small">Names you confirm are remembered for next time.</span></div>
+    <div class="tw"><table id="prodTable"></table></div>
+    <div class="sticky-save row"><button class="b p" id="prodSave">Save</button><button class="b" id="prodClear">Clear</button><span id="prodSaveMsg"></span></div>
+  </div>
+</section>
+
+<!-- LOADING LIST -->
+<section class="tab" id="t-load">
+  <div class="card">
+    <h2>Upload a loading list</h2>
+    <p class="muted small">Every item is added to STOCK OUT as type Sales. You only confirm the godown it left from.</p>
+    <div class="drop" id="loadDrop"><b>Drop the loading list .xlsx here</b>or click to choose a file<input type="file" id="loadFile" accept=".xlsx,.xls" hidden></div>
+    <div id="loadMsg"></div>
+  </div>
+  <div class="card" id="loadCard" hidden>
+    <div class="row"><b id="loadTitle"></b><span class="sp"></span>
+      <label>Date <input class="date" id="loadDate" placeholder="dd-mm-yyyy" inputmode="numeric"></label></div>
+    <div class="checks" id="loadChecks"></div>
+    <div class="row" style="margin:8px 0">
+      <button class="b" id="loadConfirmAll">Accept all suggested names</button>
+      <span class="muted small">Set every row to:</span>
+      <span class="seg" id="loadAllLoc"><button data-l="WH">WH</button><button data-l="BB1">BB1</button><button data-l="BB2">BB2</button></span>
+    </div>
+    <div class="tw"><table id="loadTable"></table></div>
+    <div class="sticky-save row"><button class="b p" id="loadSave">Save</button><button class="b" id="loadClear">Clear</button><span id="loadSaveMsg"></span></div>
+  </div>
+</section>
+
+<!-- QUICK ENTRY -->
+<section class="tab" id="t-quick">
+  <div class="card">
+    <h2>Paste a message or add rows</h2>
+    <div class="row">
+      <label>Date <input class="date" id="qDate" placeholder="dd-mm-yyyy" inputmode="numeric"></label>
+      <label>Type <select id="qType"></select></label>
+      <label>Godown <select id="qLoc"><option>WH</option><option>BB1</option><option>BB2</option></select></label>
+    </div>
+    <p class="muted small">Paste lines like <code>1x1x12x5 4mm 20</code> or <code>Gi Wire 2.5mm - 300 kg</code>. The last number on each line is taken as the quantity.</p>
+    <textarea id="qPaste" placeholder="Paste the message here"></textarea>
+    <div class="row" style="margin-top:8px"><button class="b" id="qRead">Read lines</button><button class="b" id="qAdd">+ Add empty row</button></div>
+  </div>
+  <div class="card" id="qCard" hidden>
+    <div class="tw"><table id="qTable"></table></div>
+    <div class="sticky-save row"><button class="b p" id="qSave">Save</button><button class="b" id="qClear">Clear</button><span id="qSaveMsg"></span></div>
+  </div>
+</section>
+
+<!-- TRANSFER -->
+<section class="tab" id="t-xfer">
+  <div class="card">
+    <h2>Move stock between godowns</h2>
+    <div class="row">
+      <label>Date <input class="date" id="xDate" placeholder="dd-mm-yyyy" inputmode="numeric"></label>
+      <label>From <select id="xFrom"><option>BB1</option><option>BB2</option><option>WH</option></select></label>
+      <label>To <select id="xTo"><option>WH</option><option>BB1</option><option>BB2</option></select></label>
+    </div>
+    <p class="muted small">Paste the transfer message or add rows. From / To above apply to new rows; you can change each row.</p>
+    <textarea id="xPaste" placeholder="Paste transfer lines here"></textarea>
+    <div class="row" style="margin-top:8px"><button class="b" id="xRead">Read lines</button><button class="b" id="xAdd">+ Add empty row</button></div>
+  </div>
+  <div class="card" id="xCard" hidden>
+    <div class="tw"><table id="xTable"></table></div>
+    <div class="sticky-save row"><button class="b p" id="xSave">Save</button><button class="b" id="xClear">Clear</button><span id="xSaveMsg"></span></div>
+  </div>
+</section>
+
+<!-- NEGATIVES -->
+<section class="tab" id="t-neg">
+  <div class="card">
+    <h2>How negatives are found</h2>
+    <p class="muted small">Replays every STOCK IN / STOCK OUT row day by day. A negative starts on the first day a godown's balance ends below zero; the OUT rows of that day are shown as the cause. Rows within one day have no time, so all of a day's entries are counted before checking.</p>
+    <div class="row">
+      <span class="seg" id="negView"><button data-v="open" class="on">Open now</button><button data-v="all">All (incl. fixed)</button><button data-v="total">Negative in total</button><button data-v="issues">Data issues</button></span>
+      <select id="negLoc"><option value="">All godowns</option><option>WH</option><option>BB1</option><option>BB2</option></select>
+      <input id="negSearch" placeholder="Search product" style="min-width:180px">
+    </div>
+  </div>
+  <div class="card"><div id="negBody" class="tw muted">Connect the tool in Settings first.</div></div>
+</section>
+
+<!-- SETTINGS -->
+<section class="tab" id="t-set">
+  <div class="card">
+    <h2>Connect to the IMS sheet</h2>
+    <p class="muted small">The Web app URL is already filled in. Change it only if the sheet script is deployed again under a new URL. Your name and password are saved only in this browser.</p>
+    <div style="display:grid;gap:8px;max-width:640px">
+      <label>Your name<br><input id="sUser" style="width:100%" autocomplete="name"></label>
+      <label>Password<br><input id="sKey" type="password" style="width:100%"></label>
+      <label>Web app URL<br><input id="sUrl" style="width:100%" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <div class="row"><button class="b p" id="sSave">Save &amp; connect</button><button class="b d" id="sOut">Sign out</button><span id="sMsg"></span></div>
+    </div>
+    <p class="small" id="finderInfo" style="margin-top:12px"></p>
+  </div>
+  <div class="card small muted">
+    <b>How rows are written:</b> only new rows are added after the last filled row of STOCK IN / STOCK OUT (columns A–E: Date, Product, Qty, Location, Type).
+    Every save is listed in the TOOL LOG tab; the latest save can be undone from the Dashboard while it is still the last rows in the sheet.
+    Other names of items live in the <b>Varient and item finder</b> tab (one row per product, names separated by ";"). You can add or correct them there by hand too; the tool picks them up on the next Refresh.
+  </div>
+</section>
+</main>
+</div>
+</div>
+
+<datalist id="dlp"></datalist>
+<datalist id="dlc"></datalist>
+
+<script>
+'use strict';
+const VERSION = 'v1.4.0';
+const LOCS = ['WH', 'BB1', 'BB2'];
+const IN_TYPES = ['Purchase', 'Return', 'Production', 'Stock Correction', 'Opening balance'];
+const OUT_TYPES = ['Sales', 'Usage', 'Stock correction'];
+const KG_CATS = ['gi wire', 'supreme gi wire', 'tata gi wire', 'pvc wire', 'ss wire', 'wire', 'barbed wire', 'aluminium coil'];
+
+const S = { url: '', key: '', user: '', products: [], pmap: new Map(), plow: new Map(), pcompact: new Map(), gen: new Map(),
+  aliases: new Map(), cands: [], batches: [], log: null, an: null, ready: false };
+
+/* ───────── small utils ───────── */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = s => String(s == null ? '' : s).toLowerCase().replace(/×/g, 'x').replace(/\s+/g, ' ').trim();
+const compact = s => norm(s).replace(/[^a-z0-9./+]/g, '');
+const fmtN = n => (n == null || isNaN(n)) ? '' : (Math.round(n * 100) / 100).toLocaleString('en-IN');
+const r3 = n => Math.round(n * 1000) / 1000;
+function store(k, v) { try { localStorage.setItem('imsEntry.' + k, v); } catch (e) {} }
+function recall(k) { try { return localStorage.getItem('imsEntry.' + k) || ''; } catch (e) { return ''; } }
+function pad(n) { return String(n).padStart(2, '0'); }
+function todayStr() { const d = new Date(); return pad(d.getDate()) + '-' + pad(d.getMonth() + 1) + '-' + d.getFullYear(); }
+function validDate(s) {
+  const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s || ''); if (!m) return false;
+  const d = new Date(+m[3], +m[2] - 1, +m[1]); return d.getDate() === +m[1] && d.getMonth() === +m[2] - 1;
+}
+function dkey(s) { const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s || ''); return m ? +(m[3] + m[2] + m[1]) : null; }
+function keyToDate(k) { const s = String(k); return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8)); }
+function daysBetween(k1, k2) { return Math.round((keyToDate(k2) - keyToDate(k1)) / 864e5); }
+function serialToStr(n) { const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 864e5); return pad(d.getUTCDate()) + '-' + pad(d.getUTCMonth() + 1) + '-' + d.getUTCFullYear(); }
+function dateFromText(t) {
+  const m = /(\d{1,2})[.\-\/_](\d{1,2})[.\-\/_](\d{2,4})/.exec(String(t || '')); if (!m) return '';
+  const y = m[3].length === 2 ? '20' + m[3] : m[3]; const s = pad(m[1]) + '-' + pad(m[2]) + '-' + y;
+  return validDate(s) ? s : '';
+}
+function num(v) { if (typeof v === 'number') return v; if (v == null) return null; const s = String(v).trim().replace(/,/g, ''); return /^-?\d+(\.\d+)?$/.test(s) ? parseFloat(s) : null; }
+function leadNum(v) { if (typeof v === 'number') return v; const m = /^\s*(\d+(?:\.\d+)?)/.exec(String(v || '')); return m ? parseFloat(m[1]) : null; }
+
+// masked dd-mm-yyyy fields
+function maskDate(inp) {
+  inp.addEventListener('input', () => {
+    const d = inp.value.replace(/\D/g, '').slice(0, 8);
+    let o = d.slice(0, 2); if (d.length > 2) o += '-' + d.slice(2, 4); if (d.length > 4) o += '-' + d.slice(4);
+    inp.value = o; inp.style.borderColor = (o.length === 10 && !validDate(o)) ? 'var(--bad)' : '';
+  });
+}
+
+/* ───────── API ───────── */
+async function api(action, extra) {
+  if (!S.url || !S.key) throw new Error('Sign in with your name and password first');
+  const res = await fetch(S.url, { method: 'POST', body: JSON.stringify(Object.assign({ key: S.key, user: S.user, action }, extra || {})) });
+  const j = await res.json();
+  return j;
+}
+function setConn(state, text) { const c = $('conn'); c.className = state; c.textContent = text; }
+
+async function loadAll() {
+  setConn('', 'Loading…');
+  try {
+    const [a, b] = await Promise.all([api('load'), api('log')]);
+    if (!a.ok) throw new Error(a.error); if (!b.ok) throw new Error(b.error);
+    ingest(a); S.log = b; S.an = analyze(S.log);
+    S.ready = true;
+    setConn('ok', 'Connected · ' + S.products.length + ' products');
+    renderDash(); renderNeg(); refreshGrids();
+  } catch (e) {
+    setConn('bad', 'Not connected'); S.ready = false;
+    if (/wrong password|password not set/i.test(e.message || '')) { $('gMsg').textContent = e.message; $('gUser').value = S.user; $('gate').hidden = false; }
+    $('dashBody').innerHTML = '<div class="card msg bad">' + esc(e.message || e) + '</div>';
+  }
+}
+
+function ingest(a) {
+  S.products = a.products; S.pmap = new Map(); S.plow = new Map(); S.pcompact = new Map(); S.gen = new Map(); S.aliases = new Map();
+  for (const p of S.products) { S.pmap.set(norm(p.p), p); S.plow.set(p.p.toLowerCase(), p); if (!S.pcompact.has(compact(p.p))) S.pcompact.set(compact(p.p), p); }
+  for (const [g, actual] of a.general || []) { const p = S.pmap.get(norm(g)); if (p && !S.gen.has(compact(actual))) S.gen.set(compact(actual), p); }
+  for (const al of a.aliases || []) { const p = S.pmap.get(norm(al.prod)); if (p) S.aliases.set(norm(al.src), Object.assign({}, al, { prod: p.p })); }
+  // Varient and item finder tab: other names of each product (wins over older learned names; keeps godown / Nos-Total memory)
+  let fv = 0;
+  for (const [prod, vars] of a.finder || []) {
+    const p = S.pmap.get(norm(prod)); if (!p) continue;
+    for (const v of vars) { const k = norm(v); if (!k || S.pmap.has(k)) continue; S.aliases.set(k, Object.assign({}, S.aliases.get(k) || {}, { src: v, prod: p.p, from: 'finder' })); fv++; }
+  }
+  S.finderInfo = { tab: a.finderTab || '', rows: (a.finder || []).length, vars: fv, note: a.finderNote || '' };
+  renderFinderInfo();
+  S.batches = a.batches || [];
+  // suggestion index
+  S.cands = [];
+  for (const p of S.products) S.cands.push(candOf(p, p.p));
+  for (const [g, actual] of a.general || []) { const p = S.pmap.get(norm(g)); if (p) S.cands.push(candOf(p, actual)); }
+  $('dlp').innerHTML = S.products.map(p => '<option value="' + esc(p.p) + '">').join('');
+  S.cats = [...new Set(S.products.map(p => p.c).filter(Boolean))].sort();
+  $('dlc').innerHTML = S.cats.map(c => '<option value="' + esc(c) + '">').join('');
+}
+function renderFinderInfo() {
+  const f = S.finderInfo, el = $('finderInfo'); if (!el || !f) return;
+  el.innerHTML = f.note ? '<span class="tag t-warn">Item finder</span> ' + esc(f.note) :
+    '<span class="tag t-ok">Item finder</span> "' + esc(f.tab) + '" tab: ' + f.rows + ' products, ' + f.vars + ' other names. Names you confirm in the tool are added there.';
+}
+function addLocalProduct(p) {
+  S.products.push(p); S.pmap.set(norm(p.p), p); S.plow.set(p.p.toLowerCase(), p); S.pcompact.set(compact(p.p), p); S.cands.push(candOf(p, p.p));
+  $('dlp').insertAdjacentHTML('beforeend', '<option value="' + esc(p.p) + '">');
+  if (p.c && !S.cats.includes(p.c)) { S.cats.push(p.c); $('dlc').insertAdjacentHTML('beforeend', '<option value="' + esc(p.c) + '">'); }
+}
+
+/* ───────── name matching ───────── */
+function nums(s) { return (norm(s).match(/\d+(?:\.\d+)?/g) || []).map(Number); }
+function bigr(s) { const c = compact(s); const m = new Map(); for (let i = 0; i < c.length - 1; i++) { const b = c.substr(i, 2); m.set(b, (m.get(b) || 0) + 1); } return { m, n: Math.max(c.length - 1, 0) }; }
+function dice(a, b) { if (!a.n || !b.n) return 0; let i = 0; for (const [k, v] of a.m) { const w = b.m.get(k); if (w) i += Math.min(v, w); } return 2 * i / (a.n + b.n); }
+function numScore(a, b) {
+  if (!a.length || !b.length) return 0; if (a.join() === b.join()) return 1;
+  if (a.length < b.length && b.slice(0, a.length).join() === a.join()) return 0.9; // e.g. 40x40x2.2x3 vs 40x40x2.2x3x50ft
+  const bb = b.slice(); let hit = 0; for (const x of a) { const j = bb.indexOf(x); if (j >= 0) { hit++; bb.splice(j, 1); } }
+  return 0.8 * hit / Math.max(a.length, b.length);
+}
+const BRAND = ['tata', 'supreme', 'ayush', 'first', 'nylon', 'pvc', 'ss', 'ms', 'diamond', 'compact', 'heavy', 'blue', 'barbed', 'nails', 'perf'];
+function words(s) { return new Set(norm(s).split(/[^a-z]+/).filter(Boolean)); }
+function kindOf(w) { const k = new Set(); if (w.has('ch') || w.has('chainlink')) k.add('chain'); if (w.has('weldmesh')) k.add('weld'); if (w.has('nails')) k.add('nails'); return k; }
+function candOf(p, text) { const w = words(text); return { p, b: bigr(text), n: nums(text), w, k: kindOf(w) }; }
+function suggest(name, k) {
+  const b = bigr(name), n = nums(name), w = words(name), kd = kindOf(w), best = new Map();
+  for (const c of S.cands) {
+    let sc = 0.35 * dice(b, c.b) + 0.65 * numScore(n, c.n);
+    if (kd.size && c.k.size && ![...kd].some(x => c.k.has(x))) sc *= 0.6;
+    for (const bw of BRAND) if (w.has(bw) !== c.w.has(bw)) sc -= 0.04;
+    if (!best.has(c.p.p) || best.get(c.p.p) < sc) best.set(c.p.p, sc);
+  }
+  return [...best.entries()].sort((x, y) => y[1] - x[1]).slice(0, k || 5).map(([p, s]) => ({ p, s }));
+}
+// how: exact | learned | general | suggested | new
+function resolveName(src) {
+  const n = norm(src);
+  if (S.pmap.has(n)) return { prod: S.pmap.get(n).p, how: 'exact' };
+  if (S.aliases.has(n)) return { prod: S.aliases.get(n).prod, how: 'learned', alias: S.aliases.get(n) };
+  const c = compact(src);
+  if (S.pcompact.has(c)) return { prod: S.pcompact.get(c).p, how: 'exact' };
+  if (S.gen.has(c)) return { prod: S.gen.get(c).p, how: 'general' };
+  const sg = suggest(src, 5);
+  if (sg.length && sg[0].s >= 0.7 && (sg.length < 2 || sg[0].s - sg[1].s >= 0.08)) return { prod: sg[0].p, how: 'suggested', sugg: sg };
+  return { prod: '', how: 'new', sugg: sg };
+}
+function canon(name) { const p = S.pmap.get(norm(name)); return p ? p.p : ''; }
+function stockAt(prod, loc) { const p = S.pmap.get(norm(prod)); return p ? (p[loc] || 0) : 0; }
+function prodObj(prod) { return S.pmap.get(norm(prod)); }
+
+function howTag(r) {
+  if (!r.prod) return '<span class="tag t-bad">pick name</span>';
+  if (r.how === 'learned' && r.alias && r.alias.from === 'finder') return '<span class="tag t-ok">✓ item finder</span>';
+  return ({ exact: '<span class="tag t-ok">✓ same name</span>', learned: '<span class="tag t-ok">✓ learned</span>',
+    general: '<span class="tag t-info">general name</span>', manual: '<span class="tag t-ok">✓ chosen</span>',
+    suggested: '<span class="tag t-warn">check</span>', new: '<span class="tag t-bad">pick name</span>' })[r.how] || '';
+}
+function prodCell(r, i, grid) {
+  const bad = !r.prod ? ' bad' : '';
+  let h = '<input class="pin' + bad + '" list="dlp" data-g="' + grid + '" data-i="' + i + '" data-f="prod" value="' + esc(r.prod) + '" placeholder="Type to search product">';
+  const at = 'data-g="' + grid + '" data-i="' + i + '"';
+  if (r.adding) {
+    h += '<div class="newp"><b class="small">Add a new product to the HELPER SHEET</b>' +
+      '<div class="row"><input ' + at + ' data-f="newName" value="' + esc(r.newName) + '" placeholder="Product name as it should appear"></div>' +
+      '<div class="row"><input ' + at + ' data-f="newCat" list="dlc" value="' + esc(r.newCat) + '" placeholder="Category"></div>' +
+      (r.newErr ? '<div class="small" style="color:var(--bad)">' + esc(r.newErr) + '</div>' : '') +
+      '<div class="row"><button class="b p" ' + at + ' data-act="newsave"' + (r.newBusy ? ' disabled' : '') + '>' + (r.newBusy ? 'Adding…' : 'Add product') + '</button><button class="b" ' + at + ' data-act="newcancel">Cancel</button></div></div>';
+    return h;
+  }
+  const needs = r.how === 'suggested' || r.how === 'new' || !r.prod;
+  if (needs) {
+    h += '<div class="chips">' + (r.how === 'suggested' && r.prod ? '<button class="chip" ' + at + ' data-act="ok">✓ use this</button>' : '') +
+      (r.sugg || []).filter(s => s.p !== r.prod).slice(0, 4).map(s => '<button class="chip" ' + at + ' data-act="pick" data-p="' + esc(s.p) + '">' + esc(s.p) + '</button>').join('') +
+      '<button class="chip new" ' + at + ' data-act="newp">+ New product</button></div>';
+  }
+  return h;
+}
+function locSeg(grid, i, cur, prod, qty, remain, field) {
+  return '<span class="seg">' + LOCS.map(l => {
+    const st = remain ? remain[l] : stockAt(prod, l);
+    const short = prod && qty > 0 && st < qty && cur === l;
+    return '<button class="' + (cur === l ? 'on' : '') + (short ? ' short' : '') + '" data-g="' + grid + '" data-i="' + i + '" data-act="loc" data-f="' + (field || 'loc') + '" data-l="' + l + '">' + l + (prod ? ' <small>' + fmtN(st) + '</small>' : '') + '</button>';
+  }).join('') + '</span>';
+}
+
+/* ───────── grids state ───────── */
+const G = { prod: null, load: null, quick: [], xfer: [] };
+
+/* ───────── XLSX reading ───────── */
+function readXlsx(file) {
+  return new Promise((ok, no) => {
+    if (typeof XLSX === 'undefined') return no(new Error('Excel reader did not load — check the internet connection and reload.'));
+    const fr = new FileReader();
+    fr.onload = () => { try { const wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' }); const ws = wb.Sheets[wb.SheetNames[0]]; ok(XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null })); } catch (e) { no(e); } };
+    fr.onerror = () => no(fr.error); fr.readAsArrayBuffer(file);
+  });
+}
+
+/* ───────── Production parser ───────── */
+function parseProduction(aoa, fileName) {
+  let date = '', loc = null, kg = false, fileTotal = null, kgSum = 0; const rows = [];
+  for (const r0 of aoa) {
+    const r = (r0 || []).slice(); while (r.length < 5) r.push(null);
+    const a = r[0] == null ? '' : String(r[0]).trim(), u = a.toUpperCase();
+    if (!date && typeof r[0] === 'number' && r[0] > 40000 && r[0] < 60000 && !loc) { date = serialToStr(r[0]); continue; }
+    if (!date && !loc && dateFromText(a)) { date = dateFromText(a); continue; }
+    if (u.startsWith('TOTAL PRODUCTION OF THE DAY')) { fileTotal = num(r[1]); continue; }
+    if (u.startsWith('BB1 PRODUCTION')) { loc = 'BB1'; kg = false; continue; }
+    if (u.startsWith('BB2 PRODUCTION')) { loc = 'BB2'; kg = false; continue; }
+    if (u.startsWith('BARBED WIRE PRODUCTION')) { loc = 'BB2'; kg = true; continue; }
+    if (u.startsWith('CHAINLINK PRODUCTION')) { loc = 'BB2'; kg = false; continue; }
+    if (!loc || !a || u.startsWith('TOTAL') || u.includes('PRODUCTION') || ['DAY', 'NIGHT', 'OFF'].includes(u)) continue;
+    const n = num(r[1]); if (n == null || n <= 0) continue;
+    const tot = num(r[3]);
+    const qty = kg ? tot : n; if (!(qty > 0)) continue;
+    kgSum += tot || 0;
+    rows.push({ src: a, qty: r3(qty), loc, unit: kg ? 'kg' : 'nos', kgLine: tot });
+  }
+  if (!date) date = dateFromText(fileName);
+  return { date, rows, fileTotal, kgSum: r3(kgSum) };
+}
+
+/* ───────── Loading-list parser ───────── */
+function parseLoading(aoa, fileName) {
+  let date = '', title = '', cust = ''; const rows = [];
+  for (const r0 of aoa) {
+    const cells = (r0 || []).map((v, i) => ({ v, i })).filter(c => c.v != null && String(c.v).trim() !== '');
+    if (!cells.length) continue;
+    const first = cells[0];
+    if (!title && cells.length === 1 && typeof first.v === 'string') { title = first.v.trim(); date = dateFromText(title); if (date || /for\s/i.test(title)) continue; }
+    if (cells.length === 1 && typeof first.v === 'string') { cust = first.v.trim(); continue; }
+    if (typeof first.v !== 'string') continue;
+    const row = r0, i = first.i;
+    const nosRaw = row[i + 1], per = num(row[i + 2]), total = num(row[i + 3]);
+    rows.push({ cust, src: String(first.v).trim(), nosRaw: nosRaw == null ? '' : String(nosRaw), nos: num(nosRaw), per, total: total != null ? r3(total) : (num(nosRaw) != null && per != null ? r3(num(nosRaw) * per) : leadNum(nosRaw)) });
+  }
+  if (!date) date = dateFromText(fileName);
+  return { date, title, rows };
+}
+
+/* ───────── PRODUCTION tab ───────── */
+function setupDrop(dropId, fileId, handler) {
+  const d = $(dropId), f = $(fileId);
+  d.addEventListener('click', () => f.click());
+  f.addEventListener('change', () => { if (f.files[0]) handler(f.files[0]); f.value = ''; });
+  d.addEventListener('dragover', e => { e.preventDefault(); d.classList.add('hover'); });
+  d.addEventListener('dragleave', () => d.classList.remove('hover'));
+  d.addEventListener('drop', e => { e.preventDefault(); d.classList.remove('hover'); if (e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]); });
+}
+
+async function onProdFile(file) {
+  $('prodMsg').innerHTML = ''; $('prodSaveMsg').innerHTML = '';
+  if (!S.ready) { $('prodMsg').innerHTML = '<div class="msg bad">Connect the tool in Settings first (product list is needed).</div>'; return; }
+  try {
+    const aoa = await readXlsx(file);
+    const p = parseProduction(aoa, file.name);
+    if (!p.rows.length) throw new Error('No production rows found. Is this the daily Production file?');
+    G.prod = { fileName: file.name, fileTotal: p.fileTotal, kgSum: p.kgSum, rows: p.rows.map(r => Object.assign(r, resolveName(r.src))) };
+    $('prodDate').value = p.date || todayStr();
+    $('prodTitle').textContent = file.name + ' · ' + p.rows.length + ' rows';
+    $('prodCard').hidden = false; renderProd();
+  } catch (e) { $('prodMsg').innerHTML = '<div class="msg bad">' + esc(e.message) + '</div>'; }
+}
+
+function existingRows(dir, date, type) {
+  if (!S.log) return [];
+  return S.log[dir].filter(r => r[1] === date && r[5].toLowerCase() === type.toLowerCase());
+}
+
+function renderProd() {
+  const g = G.prod; if (!g) return;
+  const date = $('prodDate').value;
+  const ck = [];
+  if (g.fileTotal != null) {
+    const okT = Math.abs(g.fileTotal - g.kgSum) < 0.6;
+    ck.push('<div>' + (okT ? '<span class="tag t-ok">✓</span>' : '<span class="tag t-bad">!</span>') + ' File total ' + fmtN(g.fileTotal) + ' kg · rows read ' + fmtN(g.kgSum) + ' kg' + (okT ? '' : ' — some lines were not read, check the file') + '</div>');
+  }
+  const ex = existingRows('IN', date, 'Production');
+  if (ex.length) ck.push('<div><span class="tag t-warn">!</span> STOCK IN already has ' + ex.length + ' Production rows dated ' + esc(date) + ' (rows ' + ex.slice(0, 3).map(r => r[0]).join(', ') + (ex.length > 3 ? '…' : '') + '). Saving again will double them.</div>');
+  const prev = S.batches.find(b => b.kind === 'production' && b.fileDate === date && b.status === 'SAVED');
+  if (prev) ck.push('<div><span class="tag t-warn">!</span> A production file for ' + esc(date) + ' was already saved by this tool on ' + esc(prev.at) + '.</div>');
+  const open = g.rows.filter(r => !r.skip && (!r.prod || r.how === 'suggested' || r.how === 'new')).length;
+  if (open) ck.push('<div><span class="tag t-warn">' + open + '</span> name(s) need your confirmation before saving.</div>');
+  $('prodChecks').innerHTML = ck.join('');
+
+  let h = '<thead><tr><th>Godown</th><th>Name in file</th><th>IMS product</th><th></th><th class="n">Qty</th><th class="n">Stock now</th><th></th></tr></thead><tbody>';
+  g.rows.forEach((r, i) => {
+    h += '<tr class="' + (r.skip ? 'skip' : '') + '"><td><select data-g="prod" data-i="' + i + '" data-f="loc">' + LOCS.map(l => '<option' + (l === r.loc ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></td>' +
+      '<td>' + esc(r.src) + (r.unit === 'kg' ? ' <span class="tag t-info">kg</span>' : '') + '</td><td>' + prodCell(r, i, 'prod') + '</td><td>' + howTag(r) + '</td>' +
+      '<td class="n"><input class="q" data-g="prod" data-i="' + i + '" data-f="qty" value="' + r.qty + '" inputmode="decimal"></td>' +
+      '<td class="n">' + (r.prod ? fmtN(stockAt(r.prod, r.loc)) : '') + '</td>' +
+      '<td><button class="x" title="Skip / include" data-g="prod" data-i="' + i + '" data-act="skip">' + (r.skip ? '↺' : '✕') + '</button></td></tr>';
+  });
+  $('prodTable').innerHTML = h + '</tbody>';
+  const n = g.rows.filter(r => !r.skip).length;
+  $('prodSave').textContent = 'Save ' + n + ' rows to STOCK IN';
+  $('prodSave').disabled = !!open || !n || !validDate(date);
+}
+
+/* ───────── LOADING tab ───────── */
+function isKgProduct(prod) { const p = prodObj(prod); return p ? KG_CATS.includes(norm(p.c)) : false; }
+function defaultBasis(r) { if (r.alias && r.alias.basis) return r.alias.basis; if (r.nos == null) return 'total'; return isKgProduct(r.prod) ? 'total' : 'nos'; }
+function qtyFor(r) { return r.basis === 'total' ? r.total : r.nos; }
+function defaultGodown(r) {
+  if (r.alias && LOCS.includes(r.alias.godown)) return r.alias.godown;
+  if (!r.prod) return 'WH';
+  const q = qtyFor(r) || 0;
+  if (stockAt(r.prod, 'WH') >= q) return 'WH';
+  return LOCS.slice().sort((a, b) => stockAt(r.prod, b) - stockAt(r.prod, a))[0];
+}
+function applyLoadDefaults(r) { r.basis = defaultBasis(r); r.qty = qtyFor(r); r.loc = defaultGodown(r); }
+
+async function onLoadFile(file) {
+  $('loadMsg').innerHTML = ''; $('loadSaveMsg').innerHTML = '';
+  if (!S.ready) { $('loadMsg').innerHTML = '<div class="msg bad">Connect the tool in Settings first (product list is needed).</div>'; return; }
+  try {
+    const aoa = await readXlsx(file);
+    const p = parseLoading(aoa, file.name);
+    if (!p.rows.length) throw new Error('No item rows found in this loading list.');
+    G.load = { fileName: file.name, title: p.title, rows: p.rows.map(r => { Object.assign(r, resolveName(r.src)); applyLoadDefaults(r); return r; }) };
+    $('loadDate').value = p.date || todayStr();
+    $('loadTitle').textContent = (p.title || file.name) + ' · ' + p.rows.length + ' items';
+    $('loadCard').hidden = false; renderLoad();
+  } catch (e) { $('loadMsg').innerHTML = '<div class="msg bad">' + esc(e.message) + '</div>'; }
+}
+
+function remainingFor(rows, upto) {
+  // stock left at each godown for row `upto`, after earlier OUT rows in this batch
+  const r = rows[upto]; const rem = {}; for (const l of LOCS) rem[l] = stockAt(r.prod, l);
+  for (let j = 0; j < upto; j++) { const o = rows[j]; if (!o.skip && o.prod && norm(o.prod) === norm(r.prod) && o.qty > 0) rem[o.loc] -= o.qty; }
+  return rem;
+}
+
+function renderLoad() {
+  const g = G.load; if (!g) return;
+  const date = $('loadDate').value;
+  const ck = [];
+  const prev = S.batches.find(b => b.kind === 'loading' && b.fileDate === date && b.fileName === g.fileName && b.status === 'SAVED');
+  if (prev) ck.push('<div><span class="tag t-warn">!</span> This loading list was already saved on ' + esc(prev.at) + '.</div>');
+  const open = g.rows.filter(r => !r.skip && (!r.prod || r.how === 'suggested' || r.how === 'new')).length;
+  if (open) ck.push('<div><span class="tag t-warn">' + open + '</span> name(s) need your confirmation before saving. Names you confirm are remembered, with the godown and quantity column you chose.</div>');
+  let shortN = 0;
+  let h = '<thead><tr><th>Name in list</th><th>IMS product</th><th></th><th>In list</th><th>Use</th><th class="n">Qty</th><th>Gone from</th><th></th></tr></thead><tbody>';
+  let lastCust = null;
+  g.rows.forEach((r, i) => {
+    if (r.cust !== lastCust) { h += '<tr class="grp"><td colspan="8">' + esc(r.cust || '—') + '</td></tr>'; lastCust = r.cust; }
+    const rem = r.prod ? remainingFor(g.rows, i) : null;
+    if (!r.skip && r.prod && rem && rem[r.loc] < r.qty) shortN++;
+    const listTxt = (r.nosRaw || '') + (r.per != null ? ' × ' + fmtN(r.per) : '') + (r.total != null ? ' = ' + fmtN(r.total) : '');
+    h += '<tr class="' + (r.skip ? 'skip' : '') + '"><td>' + esc(r.src) + '</td><td>' + prodCell(r, i, 'load') + '</td><td>' + howTag(r) + '</td>' +
+      '<td class="small muted" style="white-space:nowrap">' + esc(listTxt) + '</td>' +
+      '<td><span class="seg"><button class="' + (r.basis === 'nos' ? 'on' : '') + '" data-g="load" data-i="' + i + '" data-act="basis" data-b="nos"' + (r.nos == null ? ' disabled' : '') + '>Nos</button><button class="' + (r.basis === 'total' ? 'on' : '') + '" data-g="load" data-i="' + i + '" data-act="basis" data-b="total"' + (r.total == null ? ' disabled' : '') + '>Total</button></span></td>' +
+      '<td class="n"><input class="q" data-g="load" data-i="' + i + '" data-f="qty" value="' + (r.qty == null ? '' : r.qty) + '" inputmode="decimal"></td>' +
+      '<td>' + locSeg('load', i, r.loc, r.prod, r.qty, rem) + '</td>' +
+      '<td><button class="x" title="Skip / include" data-g="load" data-i="' + i + '" data-act="skip">' + (r.skip ? '↺' : '✕') + '</button></td></tr>';
+  });
+  if (shortN) ck.push('<div><span class="tag t-warn">' + shortN + '</span> row(s) take more than the godown has (red underline). You can still save — it will show up in Negatives.</div>');
+  $('loadChecks').innerHTML = ck.join('');
+  $('loadTable').innerHTML = h + '</tbody>';
+  const live = g.rows.filter(r => !r.skip);
+  const badQty = live.some(r => !(r.qty > 0));
+  $('loadSave').textContent = 'Save ' + live.length + ' rows to STOCK OUT';
+  $('loadSave').disabled = !!open || !live.length || badQty || !validDate(date);
+}
+
+/* ───────── QUICK tab ───────── */
+function parseLines(text) {
+  const out = [];
+  for (let line of String(text || '').split(/\r?\n/)) {
+    line = line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim(); if (!line) continue;
+    const m = line.match(/^(.*?)[\s:=\-–—,]+(\d+(?:\.\d+)?)\s*(?:nos?|kgs?|pcs?|bdls?|bundles?|rolls?|sheets?|mtrs?|box(?:es)?|no\.)?\.?\s*$/i);
+    if (m && m[1].trim()) out.push({ src: m[1].trim(), qty: parseFloat(m[2]) }); else out.push({ src: line, qty: null });
+  }
+  return out;
+}
+function typeDir(t) { return IN_TYPES.includes(t) ? 'IN' : 'OUT'; }
+function renderQuick() {
+  const rows = G.quick; $('qCard').hidden = !rows.length;
+  let h = '<thead><tr><th>From message</th><th>IMS product</th><th></th><th class="n">Qty</th><th>Godown</th><th>Type</th><th></th></tr></thead><tbody>';
+  rows.forEach((r, i) => {
+    const out = typeDir(r.type) === 'OUT';
+    const rem = out && r.prod ? remainingFor(rows.map(x => typeDir(x.type) === 'OUT' ? x : Object.assign({}, x, { skip: true })), i) : null;
+    h += '<tr><td class="small">' + esc(r.src || '') + '</td><td>' + prodCell(r, i, 'quick') + '</td><td>' + howTag(r) + '</td>' +
+      '<td class="n"><input class="q" data-g="quick" data-i="' + i + '" data-f="qty" value="' + (r.qty == null ? '' : r.qty) + '" inputmode="decimal"></td>' +
+      '<td>' + locSeg('quick', i, r.loc, r.prod, out ? r.qty : 0, rem) + '</td>' +
+      '<td><select data-g="quick" data-i="' + i + '" data-f="type">' + typeOptions(r.type) + '</select></td>' +
+      '<td><button class="x" data-g="quick" data-i="' + i + '" data-act="del">✕</button></td></tr>';
+  });
+  $('qTable').innerHTML = h + '</tbody>';
+  const open = rows.some(r => !r.prod || r.how === 'suggested' || r.how === 'new');
+  $('qSave').textContent = 'Save ' + rows.length + ' rows';
+  $('qSave').disabled = !rows.length || open || rows.some(r => !(r.qty > 0)) || !validDate($('qDate').value);
+}
+function typeOptions(sel) {
+  return '<optgroup label="STOCK IN">' + IN_TYPES.map(t => '<option' + (t === sel ? ' selected' : '') + '>' + t + '</option>').join('') + '</optgroup>' +
+    '<optgroup label="STOCK OUT">' + OUT_TYPES.map(t => '<option' + (t === sel ? ' selected' : '') + ' value="' + t + '">' + t + (t === 'Stock correction' ? ' (out)' : '') + '</option>').join('') + '</optgroup>';
+}
+
+/* ───────── TRANSFER tab ───────── */
+function renderXfer() {
+  const rows = G.xfer; $('xCard').hidden = !rows.length;
+  let h = '<thead><tr><th>From message</th><th>IMS product</th><th></th><th class="n">Qty</th><th>From</th><th>To</th><th></th></tr></thead><tbody>';
+  rows.forEach((r, i) => {
+    const rem = r.prod ? remainingFor(rows.map(x => Object.assign({}, x, { loc: x.from })), i) : null;
+    h += '<tr><td class="small">' + esc(r.src || '') + '</td><td>' + prodCell(r, i, 'xfer') + '</td><td>' + howTag(r) + '</td>' +
+      '<td class="n"><input class="q" data-g="xfer" data-i="' + i + '" data-f="qty" value="' + (r.qty == null ? '' : r.qty) + '" inputmode="decimal"></td>' +
+      '<td>' + locSeg('xfer', i, r.from, r.prod, r.qty, rem, 'from') + '</td>' +
+      '<td>' + locSeg('xfer', i, r.to, r.prod, 0, null, 'to') + '</td>' +
+      '<td><button class="x" data-g="xfer" data-i="' + i + '" data-act="del">✕</button></td></tr>';
+  });
+  $('xTable').innerHTML = h + '</tbody>';
+  const open = rows.some(r => !r.prod || r.how === 'suggested' || r.how === 'new');
+  const same = rows.some(r => r.from === r.to);
+  $('xSave').textContent = same ? 'From and To are the same on a row' : 'Save ' + rows.length + ' transfers (' + rows.length * 2 + ' rows)';
+  $('xSave').disabled = !rows.length || open || same || rows.some(r => !(r.qty > 0)) || !validDate($('xDate').value);
+}
+
+/* ───────── grid events (shared) ───────── */
+function gridRows(g) { return g === 'prod' ? G.prod.rows : g === 'load' ? G.load.rows : G[g]; }
+function rerender(g) { ({ prod: renderProd, load: renderLoad, quick: renderQuick, xfer: renderXfer })[g](); }
+function refreshGrids() {
+  // product list may have changed after a reload: re-resolve rows still needing a name
+  for (const g of ['prod', 'load']) if (G[g]) G[g].rows.forEach(r => { if (!r.prod || r.how === 'new') Object.assign(r, resolveName(r.src)); });
+  if (G.prod) renderProd(); if (G.load) renderLoad(); renderQuick(); renderXfer();
+}
+document.addEventListener('change', e => {
+  const t = e.target; const g = t.dataset && t.dataset.g; if (!g || !t.dataset.f) return;
+  const r = gridRows(g)[+t.dataset.i]; const f = t.dataset.f;
+  if (f === 'prod') {
+    const c = canon(t.value);
+    r.prod = c; r.how = c ? 'manual' : 'new'; if (!c && t.value.trim()) r.sugg = suggest(t.value, 5);
+    if (g === 'load' && c) { r.alias = S.aliases.get(norm(r.src)) || null; r.basis = r.basis || defaultBasis(r); }
+  } else if (f === 'qty') { const q = parseFloat(t.value); r.qty = isNaN(q) ? null : q; }
+  else if (f === 'newName' || f === 'newCat') { r[f] = t.value; return; }
+  else r[f] = t.value;
+  rerender(g);
+});
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-act]'); if (!t || !t.dataset.g) return;
+  const g = t.dataset.g, i = +t.dataset.i, rows = gridRows(g), r = rows[i], a = t.dataset.act;
+  if (a === 'ok') r.how = 'manual';
+  else if (a === 'pick') { r.prod = t.dataset.p; r.how = 'manual'; }
+  else if (a === 'skip') r.skip = !r.skip;
+  else if (a === 'del') rows.splice(i, 1);
+  else if (a === 'loc') r[t.dataset.f || 'loc'] = t.dataset.l;
+  else if (a === 'basis') { r.basis = t.dataset.b; r.qty = qtyFor(r); }
+  else if (a === 'newp') { r.adding = true; r.newErr = ''; r.newName = cleanNewName(r.src || ''); const top = (r.sugg || [])[0]; r.newCat = top && prodObj(top.p) ? prodObj(top.p).c : ''; }
+  else if (a === 'newcancel') r.adding = false;
+  else if (a === 'newsave') { addProduct(g, r); return; }
+  rerender(g);
+});
+function cleanNewName(s) { return String(s).replace(/\((?:check|confirm)[^)]*\)/ig, '').replace(/\s+/g, ' ').trim(); }
+async function addProduct(g, r) {
+  const card = document.querySelector('[data-g="' + g + '"][data-f="newName"]');
+  r.newName = (r.newName || '').replace(/\s+/g, ' ').trim(); r.newCat = (r.newCat || '').trim();
+  if (!r.newName || !r.newCat) { r.newErr = 'Fill in both the product name and the category.'; rerender(g); return; }
+  if (canon(r.newName)) { r.prod = canon(r.newName); r.how = 'manual'; r.adding = false; rerender(g); return; }
+  r.newBusy = true; r.newErr = ''; rerender(g);
+  try {
+    const j = await api('addProduct', { name: r.newName, category: r.newCat, src: r.src || '' });
+    r.newBusy = false;
+    if (!j.ok) { r.newErr = j.error; rerender(g); return; }
+    addLocalProduct({ c: r.newCat, p: j.name, WH: 0, BB1: 0, BB2: 0, tot: 0, st: '', nw: true });
+    r.prod = j.name; r.how = 'manual'; r.adding = false;
+    // other rows with the same name in this grid get it too
+    gridRows(g).forEach(o => { if (o !== r && !o.skip && norm(o.src) === norm(r.src) && (!o.prod || o.how === 'new' || o.how === 'suggested')) { o.prod = j.name; o.how = 'manual'; } });
+    rerender(g);
+  } catch (e) { r.newBusy = false; r.newErr = e.message; rerender(g); }
+}
+
+/* ───────── saving ───────── */
+async function doSave(kind, payload, msgEl, btn, onDone) {
+  msgEl.innerHTML = '<span class="muted">Saving…</span>'; btn.disabled = true;
+  try {
+    const j = await api('save', payload);
+    if (j.ok) {
+      msgEl.innerHTML = '<span class="tag t-ok">Saved</span> batch ' + esc(j.batch) + ' · ' + Object.entries(j.where || {}).map(([d, w]) => (d === 'IN' ? 'STOCK IN' : 'STOCK OUT') + ' rows ' + w[0] + '–' + (w[0] + w[1] - 1)).join(', ') +
+        (j.finderAdded ? ' · ' + j.finderAdded + ' new name(s) added to the item finder' : '') + (j.finderNote ? ' <span class="tag t-warn">' + esc(j.finderNote) + '</span>' : '') +
+        ' <button class="b" data-undo="' + esc(j.batch) + '">Undo</button>';
+      onDone(); await loadAll();
+    } else if (j.dup) {
+      msgEl.innerHTML = '<span class="tag t-warn">Already saved</span> ' + esc(j.error) + ' <button class="b d" id="force-' + kind + '">Save again anyway</button>';
+      $('force-' + kind).onclick = () => doSave(kind, Object.assign({}, payload, { force: true }), msgEl, btn, onDone);
+      btn.disabled = false;
+    } else { msgEl.innerHTML = '<div class="msg bad">' + esc(j.error) + '</div>'; btn.disabled = false; }
+  } catch (e) { msgEl.innerHTML = '<div class="msg bad">' + esc(e.message) + '</div>'; btn.disabled = false; }
+}
+function aliasesFrom(rows) {
+  return rows.filter(r => !r.skip && r.prod && r.src && norm(r.src) !== norm(r.prod)).map(r => ({ src: r.src, prod: r.prod }));
+}
+$('prodSave').onclick = () => {
+  const g = G.prod, date = $('prodDate').value;
+  const live = g.rows.filter(r => !r.skip);
+  doSave('production', {
+    rows: live.map(r => ({ dir: 'IN', date, prod: r.prod, qty: r.qty, loc: r.loc, type: 'Production' })),
+    aliases: aliasesFrom(live.filter(r => r.how !== 'learned' && r.how !== 'exact')),
+    imp: { kind: 'production', fileDate: date, fileName: g.fileName }
+  }, $('prodSaveMsg'), $('prodSave'), () => { G.prod = null; $('prodCard').hidden = true; $('prodMsg').innerHTML = $('prodSaveMsg').innerHTML ? '<div class="msg ok">' + $('prodSaveMsg').innerHTML + '</div>' : ''; });
+};
+$('loadSave').onclick = () => {
+  const g = G.load, date = $('loadDate').value;
+  const live = g.rows.filter(r => !r.skip);
+  doSave('loading', {
+    rows: live.map(r => ({ dir: 'OUT', date, prod: r.prod, qty: r.qty, loc: r.loc, type: 'Sales' })),
+    aliases: live.filter(r => r.prod && r.src).map(r => ({ src: r.src, prod: r.prod, basis: r.basis, godown: r.loc })),
+    imp: { kind: 'loading', fileDate: date, fileName: g.fileName }
+  }, $('loadSaveMsg'), $('loadSave'), () => { G.load = null; $('loadCard').hidden = true; $('loadMsg').innerHTML = '<div class="msg ok">' + $('loadSaveMsg').innerHTML + '</div>'; });
+};
+$('qSave').onclick = () => {
+  const date = $('qDate').value;
+  doSave('quick', {
+    rows: G.quick.map(r => ({ dir: typeDir(r.type), date, prod: r.prod, qty: r.qty, loc: r.loc, type: r.type })),
+    aliases: aliasesFrom(G.quick.filter(r => r.src && r.how !== 'learned' && r.how !== 'exact')),
+    imp: { kind: 'quick' }
+  }, $('qSaveMsg'), $('qSave'), () => { G.quick = []; $('qPaste').value = ''; });
+};
+$('xSave').onclick = () => {
+  const date = $('xDate').value; const rows = [];
+  for (const r of G.xfer) { rows.push({ dir: 'OUT', date, prod: r.prod, qty: r.qty, loc: r.from, type: 'Transfer Out' }); rows.push({ dir: 'IN', date, prod: r.prod, qty: r.qty, loc: r.to, type: 'Transfer in' }); }
+  doSave('transfer', { rows, aliases: aliasesFrom(G.xfer.filter(r => r.src && r.how !== 'learned' && r.how !== 'exact')), imp: { kind: 'transfer' } },
+    $('xSaveMsg'), $('xSave'), () => { G.xfer = []; $('xPaste').value = ''; });
+};
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-undo]'); if (!b) return;
+  if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Tap again to remove these rows'; b.classList.add('d'); return; }
+  b.disabled = true; b.textContent = 'Undoing…';
+  try { const j = await api('undo', { batch: b.dataset.undo }); b.outerHTML = j.ok ? '<span class="tag t-ok">Undone</span>' : '<span class="tag t-bad">' + esc(j.error) + '</span>'; if (j.ok) await loadAll(); }
+  catch (err) { b.outerHTML = '<span class="tag t-bad">' + esc(err.message) + '</span>'; }
+});
+
+/* ───────── NEGATIVES analysis ───────── */
+function analyze(log) {
+  const mv = [], unknown = new Map(), qtyDates = [], badRows = [];
+  const push = (dir, r) => {
+    const [row, date, prod, qty, loc, type, asDate] = r;
+    const k = dkey(date);
+    if (asDate) qtyDates.push({ dir, row, date, prod, qty, loc, type });
+    if (k == null || qty == null || !LOCS.includes(loc)) { badRows.push({ dir, row, date, prod, qty, loc, type }); return; }
+    const p = S.plow.get(String(prod).toLowerCase());
+    if (!p) { const u = unknown.get(prod) || { name: prod, rows: [], qty: 0 }; u.rows.push(dir + ' ' + row); unknown.set(prod, u); }
+    mv.push({ dir, row, date, k, prod: p ? p.p : prod, np: String(p ? p.p : prod).toLowerCase(), known: !!p, qty: dir === 'IN' ? qty : -qty, abs: qty, loc, type });
+  };
+  log.IN.forEach(r => push('IN', r)); log.OUT.forEach(r => push('OUT', r));
+  mv.sort((a, b) => a.k - b.k || (a.dir === b.dir ? a.row - b.row : (a.dir === 'IN' ? -1 : 1)));
+
+  const bal = new Map(), seenIn = new Set(), openEp = new Map(), episodes = [];
+  const bk = (p, l) => p + '|' + l;
+  let i = 0;
+  while (i < mv.length) {
+    const day = mv[i].k; const touched = new Map();
+    while (i < mv.length && mv[i].k === day) {
+      const m = mv[i]; if (m.known) {
+        const key = bk(m.prod, m.loc); bal.set(key, r3((bal.get(key) || 0) + m.qty));
+        if (!touched.has(key)) touched.set(key, []); touched.get(key).push(m);
+      } i++;
+    }
+    for (const [key, ms] of touched) {
+      const b = bal.get(key); const ep = openEp.get(key);
+      const [prod, loc] = key.split('|');
+      if (b < -0.0005) {
+        if (!ep) {
+          const e = { prod, loc, start: ms[0].date, sk: day, min: b, end: null, ek: null, trig: ms.filter(m => m.dir === 'OUT'), dayIn: ms.filter(m => m.dir === 'IN') };
+          e.cause = causeOf(e, mv, bal, seenIn.has(key), day);
+          openEp.set(key, e); episodes.push(e);
+        } else if (b < ep.min) ep.min = b;
+      } else if (ep) { ep.end = ms[0].date; ep.ek = day; openEp.delete(key); }
+      if (ms.some(m => m.dir === 'IN')) seenIn.add(key);
+    }
+  }
+  const today = dkey(todayStr());
+  for (const e of episodes) { e.now = bal.get(bk(e.prod, e.loc)) || 0; e.days = daysBetween(e.sk, e.ek || today); }
+
+  // totals across godowns
+  const totals = [];
+  for (const p of S.products) { const t = r3(LOCS.reduce((s, l) => s + (bal.get(bk(p.p, l)) || 0), 0)); if (t < -0.0005) totals.push({ prod: p.p, total: t, by: LOCS.map(l => [l, bal.get(bk(p.p, l)) || 0]) }); }
+
+  // log vs CURRENT STOCK
+  const diffs = [];
+  for (const p of S.products) for (const l of LOCS) { const a = bal.get(bk(p.p, l)) || 0; if (Math.abs(a - (p[l] || 0)) > 0.01) diffs.push({ prod: p.p, loc: l, log: a, sheet: p[l] || 0 }); }
+
+  // transfers without the other side (match same product + qty within 3 days)
+  const outs = mv.filter(m => m.type.toLowerCase() === 'transfer out'), ins = mv.filter(m => m.type.toLowerCase() === 'transfer in');
+  const used = new Set(); const lonelyOut = [];
+  for (const o of outs) {
+    let best = -1, bd = 99;
+    ins.forEach((n, j) => { if (used.has(j) || n.np !== o.np || n.abs !== o.abs || n.loc === o.loc) return; const d = Math.abs(daysBetween(o.k, n.k)); if (d <= 3 && d < bd) { bd = d; best = j; } });
+    if (best >= 0) used.add(best); else lonelyOut.push(o);
+  }
+  const lonelyIn = ins.filter((n, j) => !used.has(j));
+  return { mv, episodes, totals, diffs, unknown: [...unknown.values()], qtyDates, badRows, lonelyOut, lonelyIn, bal };
+}
+
+function causeOf(e, mv, bal, hadIn, day) {
+  const tips = [];
+  if (!hadIn && !e.dayIn.length) tips.push('No stock was ever entered at ' + e.loc + ' for this item before — opening balance, production or Transfer in may be missing.');
+  for (const t of e.trig) {
+    const tl = t.type.toLowerCase();
+    if (tl === 'transfer out') {
+      const match = mv.find(m => m.type.toLowerCase() === 'transfer in' && m.np === t.np && m.abs === t.abs && m.loc !== t.loc && Math.abs(daysBetween(t.k, m.k)) <= 3);
+      if (!match) tips.push('Transfer Out of ' + fmtN(t.abs) + ' (row ' + t.row + ') has no matching Transfer in — wrong "from" godown, or the other side was not entered.');
+      else tips.push('Transfer Out of ' + fmtN(t.abs) + ' went to ' + match.loc + ' (' + match.date + '), but ' + e.loc + ' did not have it — production / Transfer in to ' + e.loc + ' may be missing.');
+    } else if (tl === 'sales' || tl === 'usage') {
+      const others = LOCS.filter(l => l !== e.loc).map(l => [l, bal.get(e.prod + '|' + l) || 0]).filter(([, b]) => b >= t.abs);
+      if (others.length) tips.push(t.type + ' of ' + fmtN(t.abs) + ' (row ' + t.row + ') — ' + others.map(([l, b]) => l + ' had ' + fmtN(b)).join(', ') + '. Maybe it went from there.');
+    }
+    const sameIn = mv.find(m => m.k === day && m.dir === 'IN' && m.np === t.np && m.abs === t.abs && m.loc !== e.loc);
+    if (sameIn) tips.push('Same qty ' + fmtN(t.abs) + ' came IN at ' + sameIn.loc + ' that day (' + sameIn.type + ', row ' + sameIn.row + ') — entered at the wrong godown?');
+  }
+  if (!tips.length) tips.push('Stock was short — check earlier IN entries (production, purchase, transfer in) for this item at ' + e.loc + '.');
+  return [...new Set(tips)];
+}
+
+/* ───────── NEGATIVES render ───────── */
+let negView = 'open';
+function renderNeg() {
+  const an = S.an; if (!an) return;
+  const loc = $('negLoc').value, q = norm($('negSearch').value);
+  const fil = x => (!loc || x.loc === loc) && (!q || norm(x.prod).includes(q));
+  let h = '';
+  if (negView === 'open' || negView === 'all') {
+    const list = an.episodes.filter(e => (negView === 'all' || !e.end) && fil(e)).sort((a, b) => (a.end ? 1 : 0) - (b.end ? 1 : 0) || a.sk - b.sk);
+    h = '<table><thead><tr><th>Status</th><th>Product</th><th>Godown</th><th class="n">Now</th><th class="n">Lowest</th><th>Negative since</th><th class="n">Days</th><th>Entry that caused it</th><th>Probable cause</th></tr></thead><tbody>';
+    list.forEach((e, i) => {
+      h += '<tr><td>' + (e.end ? '<span class="tag t-ok">Fixed ' + esc(e.end) + '</span>' : '<span class="tag t-bad">Open</span>') + '</td>' +
+        '<td><a href="#" data-hist="' + esc(e.prod) + '|' + e.loc + '">' + esc(e.prod) + '</a></td><td>' + e.loc + '</td>' +
+        '<td class="n">' + fmtN(e.now) + '</td><td class="n">' + fmtN(e.min) + '</td><td>' + esc(e.start) + '</td><td class="n">' + e.days + '</td>' +
+        '<td class="small">' + (e.trig.length ? e.trig.map(t => 'OUT row ' + t.row + ': ' + esc(t.type) + ' ' + fmtN(t.abs)).join('<br>') : '—') + '</td>' +
+        '<td class="small">' + e.cause.map(esc).join('<br>') + '</td></tr><tr hidden id="hist-' + i + '"></tr>';
+    });
+    h += '</tbody></table>';
+    if (!list.length) h = '<p class="muted">Nothing here' + (negView === 'open' ? ' — no open negatives.' : '.') + '</p>';
+  } else if (negView === 'total') {
+    const list = an.totals.filter(t => !q || norm(t.prod).includes(q));
+    h = '<p class="muted small">Products below zero when WH + BB1 + BB2 are added together. These cannot be explained by a wrong godown — an IN entry is missing or an OUT is too big.</p><table><thead><tr><th>Product</th><th class="n">Total</th><th class="n">WH</th><th class="n">BB1</th><th class="n">BB2</th></tr></thead><tbody>' +
+      list.map(t => '<tr><td>' + esc(t.prod) + '</td><td class="n">' + fmtN(t.total) + '</td>' + t.by.map(([, b]) => '<td class="n">' + fmtN(b) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
+    if (!list.length) h = '<p class="muted">No product is negative in total.</p>';
+  } else {
+    h = issuesHtml(an);
+  }
+  $('negBody').innerHTML = h; $('negBody').classList.remove('muted');
+}
+function issuesHtml(an) {
+  let h = '';
+  h += '<h3>Names not in the product list (' + an.unknown.length + ')</h3><p class="muted small">These rows do not count in CURRENT STOCK. Fix the name in the sheet.</p>';
+  h += an.unknown.length ? '<table><tbody>' + an.unknown.sort((a, b) => b.rows.length - a.rows.length).map(u => '<tr><td>' + esc(u.name) + '</td><td class="small muted">' + u.rows.slice(0, 6).join(', ') + (u.rows.length > 6 ? ' … +' + (u.rows.length - 6) : '') + '</td></tr>').join('') + '</tbody></table>' : '<p class="muted">None.</p>';
+  h += '<h3>Transfer Out with no matching Transfer in (' + an.lonelyOut.length + ')</h3><p class="muted small">Same product and quantity not found as Transfer in at another godown within 3 days.</p>';
+  h += lonelyTable(an.lonelyOut);
+  h += '<h3>Transfer in with no matching Transfer Out (' + an.lonelyIn.length + ')</h3>' + lonelyTable(an.lonelyIn);
+  h += '<h3>Quantity cell formatted as a date (' + an.qtyDates.length + ')</h3><p class="muted small">The number counts correctly but shows as a date like 07-03-1900. Select the cell → Format → Number → Automatic.</p>';
+  h += an.qtyDates.length ? '<table><tbody>' + an.qtyDates.map(r => '<tr><td>' + (r.dir === 'IN' ? 'STOCK IN' : 'STOCK OUT') + ' row ' + r.row + '</td><td>' + esc(r.date) + '</td><td>' + esc(r.prod) + '</td><td class="n">' + fmtN(r.qty) + '</td><td>' + esc(r.loc) + '</td></tr>').join('') + '</tbody></table>' : '<p class="muted">None.</p>';
+  if (an.badRows.length) h += '<h3>Rows with a bad date, quantity or godown (' + an.badRows.length + ')</h3><table><tbody>' + an.badRows.slice(0, 100).map(r => '<tr><td>' + r.dir + ' row ' + r.row + '</td><td>' + esc(r.date) + '</td><td>' + esc(r.prod) + '</td><td>' + esc(r.qty) + '</td><td>' + esc(r.loc) + '</td></tr>').join('') + '</tbody></table>';
+  h += '<h3>Log total vs CURRENT STOCK (' + an.diffs.length + ' differences)</h3><p class="muted small">The tool adds up STOCK IN − STOCK OUT itself. If CURRENT STOCK shows something else, a formula range or a name/space difference is involved.</p>';
+  h += an.diffs.length ? '<table><thead><tr><th>Product</th><th>Godown</th><th class="n">From log</th><th class="n">CURRENT STOCK</th></tr></thead><tbody>' + an.diffs.slice(0, 200).map(d => '<tr><td>' + esc(d.prod) + '</td><td>' + d.loc + '</td><td class="n">' + fmtN(d.log) + '</td><td class="n">' + fmtN(d.sheet) + '</td></tr>').join('') + '</tbody></table>' : '<p class="muted">None — they agree.</p>';
+  return h;
+}
+function lonelyTable(list) {
+  if (!list.length) return '<p class="muted">None.</p>';
+  return '<table><tbody>' + list.slice().sort((a, b) => b.k - a.k).slice(0, 150).map(m => '<tr><td>' + esc(m.date) + '</td><td>' + (m.dir === 'IN' ? 'IN' : 'OUT') + ' row ' + m.row + '</td><td>' + esc(m.prod) + '</td><td class="n">' + fmtN(m.abs) + '</td><td>' + m.loc + '</td></tr>').join('') + '</tbody></table>' + (list.length > 150 ? '<p class="muted small">Showing latest 150.</p>' : '');
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-hist]'); if (!a) return; e.preventDefault();
+  const tr = a.closest('tr').nextElementSibling; if (!tr) return;
+  if (!tr.hidden) { tr.hidden = true; return; }
+  const [prod, loc] = a.dataset.hist.split('|');
+  let run = 0; const rows = [];
+  for (const m of S.an.mv) if (m.known && m.prod === prod && m.loc === loc) { run = r3(run + m.qty); rows.push([m, run]); }
+  tr.innerHTML = '<td colspan="9"><table class="hist"><thead><tr><th>Date</th><th>Row</th><th>Type</th><th class="n">Qty</th><th class="n">Balance</th></tr></thead><tbody>' +
+    rows.slice(-15).map(([m, b]) => '<tr><td>' + m.date + '</td><td>' + m.dir + ' ' + m.row + '</td><td>' + esc(m.type) + '</td><td class="n">' + (m.qty > 0 ? '+' : '') + fmtN(m.qty) + '</td><td class="n" style="' + (b < 0 ? 'color:var(--bad);font-weight:600' : '') + '">' + fmtN(b) + '</td></tr>').join('') +
+    '</tbody></table><span class="muted small">Last 15 movements, balance at end of each row (within a day the order is the sheet order).</span></td>';
+  tr.hidden = false;
+});
+
+/* ───────── DASHBOARD ───────── */
+function renderDash() {
+  const an = S.an; if (!an) return;
+  const open = an.episodes.filter(e => !e.end);
+  const byLoc = LOCS.map(l => l + ' ' + open.filter(e => e.loc === l).length).join(' · ');
+  const issues = an.unknown.length + an.lonelyOut.length + an.lonelyIn.length + an.qtyDates.length + an.badRows.length;
+  const low = S.products.filter(p => /low|danger|order/i.test(p.st));
+  const lastDate = (dir, type) => { const r = S.log[dir].filter(x => x[5].toLowerCase() === type.toLowerCase()); let best = null; for (const x of r) { const k = dkey(x[1]); if (k && (!best || k > best[0])) best = [k, x[1]]; } return best ? best[1] : '—'; };
+  let h = '<div class="grid">' +
+    stat(open.length ? 'bad' : 'ok', open.length, 'Open negatives', byLoc, 'neg:open') +
+    stat(an.totals.length ? 'bad' : 'ok', an.totals.length, 'Negative in total', 'WH+BB1+BB2 below zero', 'neg:total') +
+    stat(issues ? 'warn' : 'ok', issues, 'Data issues', 'names, one-sided transfers…', 'neg:issues') +
+    stat(low.length ? 'warn' : 'ok', low.length, 'Low / danger stock', 'from CURRENT STOCK status', 'low') +
+    stat('', lastDate('IN', 'Production'), 'Last Production entry', 'STOCK IN', 'prod') +
+    stat('', lastDate('OUT', 'Sales'), 'Last Sales entry', 'STOCK OUT', 'load') + '</div>';
+
+  h += '<div class="card" style="margin-top:14px"><h2>Oldest open negatives</h2>' + (open.length ? '<div class="tw"><table><thead><tr><th>Product</th><th>Godown</th><th class="n">Now</th><th>Since</th><th class="n">Days</th><th>Probable cause</th></tr></thead><tbody>' +
+    open.slice().sort((a, b) => a.sk - b.sk).slice(0, 10).map(e => '<tr><td>' + esc(e.prod) + '</td><td>' + e.loc + '</td><td class="n">' + fmtN(e.now) + '</td><td>' + esc(e.start) + '</td><td class="n">' + e.days + '</td><td class="small">' + esc(e.cause[0]) + '</td></tr>').join('') +
+    '</tbody></table></div><p><button class="b" data-go="neg:open">See all ' + open.length + '</button></p>' : '<p class="muted">No open negatives.</p>') + '</div>';
+
+  const latest = S.batches.find(b => b.status === 'SAVED');
+  h += '<div class="card"><h2>Saved by this tool</h2>' + (S.batches.length ? '<div class="tw"><table><thead><tr><th>Saved at</th><th>Kind</th><th>File date</th><th>File</th><th class="n">Rows</th><th></th></tr></thead><tbody>' +
+    S.batches.slice(0, 12).map(b => '<tr><td>' + esc(b.at) + '</td><td>' + esc(b.kind) + '</td><td>' + esc(b.fileDate) + '</td><td class="small">' + esc(b.fileName) + '</td><td class="n">' + esc(b.rows) + '</td><td>' +
+      (b.status === 'UNDONE' ? '<span class="tag t-info">undone</span>' : (latest && b.id === latest.id ? '<button class="b" data-undo="' + esc(b.id) + '">Undo</button>' : '')) + '</td></tr>').join('') +
+    '</tbody></table></div>' : '<p class="muted">Nothing saved yet.</p>') + '</div>';
+
+  h += '<div class="card" id="lowCard"><h2>Low / danger stock (' + low.length + ')</h2>' + (low.length ? '<div class="tw"><table><thead><tr><th>Product</th><th>Category</th><th class="n">WH</th><th class="n">BB1</th><th class="n">BB2</th><th class="n">Total</th><th>Status</th></tr></thead><tbody>' +
+    low.slice().sort((a, b) => a.tot - b.tot).slice(0, 60).map(p => '<tr><td>' + esc(p.p) + '</td><td class="small muted">' + esc(p.c) + '</td><td class="n">' + fmtN(p.WH) + '</td><td class="n">' + fmtN(p.BB1) + '</td><td class="n">' + fmtN(p.BB2) + '</td><td class="n">' + fmtN(p.tot) + '</td><td><span class="tag t-warn">' + esc(p.st) + '</span></td></tr>').join('') +
+    '</tbody></table></div>' : '<p class="muted">None.</p>') + '</div>';
+  $('dashBody').innerHTML = h;
+}
+function stat(cls, v, l, sub, go) { return '<div class="stat ' + cls + '" data-go="' + go + '" role="button" tabindex="0"><div class="v' + (/-/.test(v) ? ' date' : '') + '">' + esc(v) + '</div><div class="l">' + esc(l) + '</div><div class="s">' + esc(sub) + '</div></div>'; }
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]'); if (!g) return;
+  const [tab, view] = g.dataset.go.split(':');
+  if (tab === 'low') { $('lowCard').scrollIntoView({ behavior: 'smooth' }); return; }
+  showTab(tab); if (view) { negView = view; [...$('negView').children].forEach(b => b.classList.toggle('on', b.dataset.v === view)); renderNeg(); }
+});
+
+/* ───────── tabs & wiring ───────── */
+const ENTRY_TABS = ['prod', 'load', 'quick', 'xfer'];
+const TITLES = {
+  dash: ['Dashboard', 'Negative stock, data issues and low stock at a glance'],
+  prod: ['Production file', 'The day\'s production sheet into STOCK IN'],
+  load: ['Loading list', 'Dispatched items into STOCK OUT'],
+  quick: ['Quick entry', 'Purchases, returns, small sales, usage and corrections'],
+  xfer: ['Godown transfer', 'One entry writes both sides of a transfer'],
+  neg: ['Negative stock', 'Where stock went below zero and which entry caused it'],
+  set: ['Settings', 'Connection to the IMS sheet copy']
+};
+let lastEntry = 'prod';
+function showTab(t) {
+  if (t === 'entries') t = lastEntry;
+  const isEntry = ENTRY_TABS.includes(t);
+  if (isEntry) lastEntry = t;
+  const main = isEntry ? 'entries' : t;
+  document.querySelectorAll('#nav > a').forEach(b => b.classList.toggle('on', b.dataset.t === main));
+  document.querySelectorAll('#subside a').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  [...$('subnav').children].forEach(b => b.classList.toggle('on', b.dataset.s === t));
+  if (isEntry) document.querySelector('#nav .grp').classList.remove('closed');
+  document.body.classList.toggle('entries', isEntry);
+  document.querySelectorAll('.tab').forEach(s => s.classList.toggle('on', s.id === 't-' + t));
+  $('pageTitle').textContent = TITLES[t][0]; $('pageSub').textContent = TITLES[t][1];
+  document.title = TITLES[t][0] + ' · IMS Stock Entry';
+  document.body.classList.remove('drawer');
+}
+$('nav').addEventListener('click', e => {
+  const b = e.target.closest('a[data-t]'); if (!b) return;
+  if (b.classList.contains('grp') && document.body.classList.contains('entries') && !document.body.classList.contains('collapsed')) { b.classList.toggle('closed'); return; }
+  showTab(b.dataset.t);
+});
+$('subnav').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.s); });
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('#nav a, .stat')) { e.preventDefault(); e.target.click(); } });
+document.querySelectorAll('#nav a').forEach(a => { a.tabIndex = 0; a.setAttribute('role', 'button'); });
+// sidebar collapse (desktop) / drawer (phone)
+function setCollapsed(c) { document.body.classList.toggle('collapsed', c); store('collapsed', c ? '1' : ''); }
+$('burger').onclick = () => setCollapsed(!document.body.classList.contains('collapsed'));
+$('mburger').onclick = () => document.body.classList.add('drawer');
+$('scrim').onclick = () => document.body.classList.remove('drawer');
+if (recall('collapsed')) document.body.classList.add('collapsed');
+// theme: auto -> light -> dark
+const THEMES = ['auto', 'light', 'dark'];
+function applyTheme(t) {
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  $('themeIcon').setAttribute('href', t === 'light' ? '#i-sun' : t === 'dark' ? '#i-moon' : '#i-auto');
+  $('themeBtn').title = 'Theme: ' + (t === 'auto' ? 'same as device' : t) + ' (click to change)';
+}
+let theme = recall('theme') || 'auto'; applyTheme(theme);
+$('themeBtn').onclick = () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; store('theme', theme); applyTheme(theme); };
+$('negView').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; negView = b.dataset.v; [...$('negView').children].forEach(x => x.classList.toggle('on', x === b)); renderNeg(); });
+$('negLoc').onchange = renderNeg; $('negSearch').oninput = renderNeg;
+$('refresh').onclick = loadAll;
+
+setupDrop('prodDrop', 'prodFile', onProdFile);
+setupDrop('loadDrop', 'loadFile', onLoadFile);
+$('prodDate').addEventListener('input', renderProd); $('loadDate').addEventListener('input', renderLoad);
+$('qDate').addEventListener('input', renderQuick); $('xDate').addEventListener('input', renderXfer);
+['prodDate', 'loadDate', 'qDate', 'xDate'].forEach(id => maskDate($(id)));
+$('qDate').value = todayStr(); $('xDate').value = todayStr();
+$('qType').innerHTML = typeOptions('Purchase');
+$('prodConfirmAll').onclick = () => { G.prod.rows.forEach(r => { if (r.how === 'suggested') r.how = 'manual'; }); renderProd(); };
+$('loadConfirmAll').onclick = () => { G.load.rows.forEach(r => { if (r.how === 'suggested') r.how = 'manual'; }); renderLoad(); };
+$('loadAllLoc').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || !G.load) return; G.load.rows.forEach(r => r.loc = b.dataset.l); renderLoad(); });
+$('prodClear').onclick = () => { G.prod = null; $('prodCard').hidden = true; };
+$('loadClear').onclick = () => { G.load = null; $('loadCard').hidden = true; };
+$('qClear').onclick = () => { G.quick = []; renderQuick(); };
+$('xClear').onclick = () => { G.xfer = []; renderXfer(); };
+
+function newRowsFrom(text) { return parseLines(text).map(l => Object.assign({ src: l.src, qty: l.qty }, resolveName(l.src))); }
+$('qRead').onclick = () => {
+  if (!S.ready) { $('qSaveMsg').textContent = ''; $('qCard').hidden = false; $('qTable').innerHTML = '<tr><td class="msg bad">Connect the tool in Settings first.</td></tr>'; return; }
+  const type = $('qType').value, loc = $('qLoc').value;
+  G.quick.push(...newRowsFrom($('qPaste').value).map(r => Object.assign(r, { type, loc }))); renderQuick();
+};
+$('qAdd').onclick = () => { G.quick.push({ src: '', prod: '', how: 'new', qty: null, type: $('qType').value, loc: $('qLoc').value }); renderQuick(); };
+$('xRead').onclick = () => {
+  if (!S.ready) { $('xCard').hidden = false; $('xTable').innerHTML = '<tr><td class="msg bad">Connect the tool in Settings first.</td></tr>'; return; }
+  const from = $('xFrom').value, to = $('xTo').value;
+  G.xfer.push(...newRowsFrom($('xPaste').value).map(r => Object.assign(r, { from, to }))); renderXfer();
+};
+$('xAdd').onclick = () => { G.xfer.push({ src: '', prod: '', how: 'new', qty: null, from: $('xFrom').value, to: $('xTo').value }); renderXfer(); };
+
+const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbws7kmv6v4aR-UvP22BTQS7DtoMMFbrv4aKdbseCPuthXisC3wI7e9U-SOWMU_uDng/exec';
+function showWho() { $('whoName').textContent = S.user || '—'; }
+async function signIn(user, key, url, msgEl) {
+  S.user = user; S.key = key; S.url = url || DEFAULT_URL;
+  msgEl.innerHTML = '<span class="muted">Connecting…</span>';
+  try {
+    const j = await api('ping'); if (!j.ok) throw new Error(j.error);
+    store('user', S.user); store('key', S.key); store('url', S.url === DEFAULT_URL ? '' : S.url);
+    $('sUser').value = S.user; $('sKey').value = S.key; $('sUrl').value = S.url; showWho();
+    msgEl.innerHTML = '';
+    $('gate').hidden = true;
+    await loadAll();
+    return true;
+  } catch (e) { msgEl.innerHTML = '<span style="color:var(--bad)">' + esc(e.message === 'Failed to fetch' ? 'Could not reach the sheet script. Check the internet connection and the Web app URL.' : e.message) + '</span>'; return false; }
+}
+$('gateForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const u = $('gUser').value.trim(), k = $('gKey').value.trim();
+  if (!u || !k) { $('gMsg').textContent = 'Enter your name and the password.'; return; }
+  signIn(u, k, S.url, $('gMsg'));
+});
+$('sSave').onclick = async () => {
+  const u = $('sUser').value.trim(), k = $('sKey').value.trim();
+  if (!u || !k) { $('sMsg').innerHTML = '<span class="tag t-bad">Enter your name and the password.</span>'; return; }
+  if (await signIn(u, k, $('sUrl').value.trim(), $('sMsg'))) $('sMsg').innerHTML = '<span class="tag t-ok">Connected</span>';
+};
+$('sOut').onclick = () => {
+  store('key', ''); S.key = ''; S.ready = false; $('sKey').value = ''; $('gKey').value = '';
+  $('gUser').value = S.user; $('gMsg').textContent = ''; $('gate').hidden = false; setConn('', 'Not connected');
+};
+
+$('ver').textContent = VERSION;
+S.url = recall('url') || DEFAULT_URL; S.key = recall('key'); S.user = recall('user');
+$('sUrl').value = S.url; $('sKey').value = S.key; $('sUser').value = S.user; $('gUser').value = S.user; showWho();
+showTab('dash');
+if (S.key && S.user) loadAll(); else { $('gate').hidden = false; setTimeout(() => (S.user ? $('gKey') : $('gUser')).focus(), 50); }
+</script>
+</body>
+</html>
