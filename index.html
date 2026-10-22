@@ -15,7 +15,7 @@
   --brand:#0f6a73;--brand-ink:#ffffff;--soft:#e2f0f1;
   --side:#16232e;--side-ink:#dbe5ec;--side-muted:#8597a6;--side-hi:#223443;--side-mesh:rgba(255,255,255,.045);
   --ok:#1d7a46;--ok-bg:#e1f3e8;--warn:#8a5d00;--warn-bg:#fff1cc;--bad:#b42318;--bad-bg:#fde6e3;
-  --info-bg:#e5edf8;--info:#2b4f86;--tape:#e3a613;
+  --info-bg:#e5edf8;--info:#2b4f86;--tape:#e3a613;--in-bg:#bfe3cc;--in-ink:#0f5c33;
   --shadow:0 1px 2px rgba(22,35,46,.06),0 2px 8px rgba(22,35,46,.04);
   color-scheme:light;
 }
@@ -26,7 +26,7 @@
     --brand:#3fb6bf;--brand-ink:#06191b;--soft:#16323a;
     --side:#0b1116;--side-ink:#d5dfe7;--side-muted:#7d8d9a;--side-hi:#18242e;--side-mesh:rgba(255,255,255,.035);
     --ok:#6fd39a;--ok-bg:#173426;--warn:#f0c24b;--warn-bg:#3a3016;--bad:#ff8b80;--bad-bg:#3d1f1c;--info-bg:#1b2840;--info:#9db8ff;
-    --shadow:none;color-scheme:dark;
+    --in-bg:#173426;--in-ink:#6fd39a;--shadow:none;color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
@@ -34,7 +34,7 @@
   --brand:#3fb6bf;--brand-ink:#06191b;--soft:#16323a;
   --side:#0b1116;--side-ink:#d5dfe7;--side-muted:#7d8d9a;--side-hi:#18242e;--side-mesh:rgba(255,255,255,.035);
   --ok:#6fd39a;--ok-bg:#173426;--warn:#f0c24b;--warn-bg:#3a3016;--bad:#ff8b80;--bad-bg:#3d1f1c;--info-bg:#1b2840;--info:#9db8ff;
-  --shadow:none;color-scheme:dark;
+  --in-bg:#173426;--in-ink:#6fd39a;--shadow:none;color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -79,7 +79,7 @@ body.collapsed .side-foot{text-align:center;padding:12px 4px}
 .top .sp{flex:1}
 #conn{font-size:12.5px;padding:5px 11px;border-radius:99px;background:var(--line2);color:var(--muted);display:inline-flex;align-items:center;gap:6px}
 #conn::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-#conn.ok{background:var(--ok-bg);color:var(--ok)} #conn.bad{background:var(--bad-bg);color:var(--bad)}
+#conn.ok{background:var(--ok-bg);color:var(--ok)} #conn.bad{background:var(--bad-bg);color:var(--bad)} #conn.warn{background:var(--warn-bg);color:var(--warn)}
 .iconbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;display:grid;place-items:center}
 .iconbtn:hover{border-color:var(--brand)}
 #subnav{display:none;gap:6px;overflow-x:auto;padding:0 28px 6px}
@@ -202,13 +202,19 @@ th .ar{font-size:10px;margin-left:3px}
 .cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
 .share{display:inline-block;height:6px;border-radius:3px;background:var(--brand);opacity:.55;vertical-align:middle}
 .st{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:99px;white-space:nowrap}
-.st-in{background:var(--ok-bg);color:var(--ok)} .st-low{background:var(--warn-bg);color:var(--warn)} .st-danger{background:var(--bad-bg);color:var(--bad)}
+.st-in{background:var(--in-bg);color:var(--in-ink)} .st-low{background:var(--warn-bg);color:var(--warn)} .st-danger{background:var(--bad-bg);color:var(--bad)}
 .st-zero{background:var(--line2);color:var(--muted)} .st-neg{background:var(--bad);color:#fff}
 td.neg{color:var(--bad);font-weight:600}
 .perCustom{display:inline-flex;gap:6px;align-items:center}
 .perCustom[hidden]{display:none}
 a.il{color:inherit;text-decoration:none;border-bottom:1px dotted var(--muted);cursor:pointer}
 a.il:hover{color:var(--brand)}
+
+.catorder{list-style:none;margin:8px 0 12px;padding:0;max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.catorder li{display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--line2);background:var(--card);cursor:grab}
+.catorder li:last-child{border-bottom:0}
+.catorder .cn{flex:1;font-weight:500}
+.catorder .grip{color:var(--muted);letter-spacing:-2px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -384,6 +390,7 @@ a.il:hover{color:var(--brand)}
 <section class="tab" id="t-top">
   <div class="card">
     <div class="row ctl"><span class="seg" data-per="top"></span><span class="perCustom" data-perc="top"></span></div>
+    <div class="row ctl"><span class="seg" id="topMode"><button data-m="cat" class="on">By item category</button><button data-m="unit">By pieces / weight</button></span></div>
     <div class="row ctl"><span class="seg" id="topN"><button data-n="20" class="on">Top 20</button><button data-n="50">Top 50</button></span>
       <select id="topLoc"><option value="">All godowns</option><option>WH</option><option>BB1</option><option>BB2</option></select>
       <span class="muted small">Sales only. Nail bags count as 25 kg.</span></div>
@@ -450,6 +457,13 @@ a.il:hover{color:var(--brand)}
     </div>
     <p class="small" id="finderInfo" style="margin-top:12px"></p>
   </div>
+  <div class="card">
+    <h2>Category order</h2>
+    <p class="muted small" id="catOrderInfo"></p>
+    <p class="muted small">Drag a category, or use ↑ ↓, then save. The order is stored in the sheet, so every PC shows the same.</p>
+    <ol id="catOrderBox" class="catorder"></ol>
+    <div class="row"><button class="b p" id="catSave">Save order</button><button class="b" id="catReset">Back to sheet order</button><span id="catOrderMsg"></span></div>
+  </div>
   <div class="card small muted">
     <b>How rows are written:</b> only new rows are added after the last filled row of STOCK IN / STOCK OUT (columns A–E: Date, Product, Qty, Location, Type).
     Every save is listed in the TOOL LOG tab; the latest save can be undone from the Dashboard while it is still the last rows in the sheet.
@@ -465,7 +479,7 @@ a.il:hover{color:var(--brand)}
 
 <script>
 'use strict';
-const VERSION = 'v1.6.0';
+const VERSION = 'v1.7.0';
 const LOCS = ['WH', 'BB1', 'BB2'];
 const IN_TYPES = ['Purchase', 'Return', 'Production', 'Stock Correction', 'Opening balance'];
 const OUT_TYPES = ['Sales', 'Usage', 'Stock correction'];
@@ -519,32 +533,49 @@ async function api(action, extra) {
 }
 function setConn(state, text) { const c = $('conn'); c.className = state; c.textContent = text; }
 
+// Data from the sheet is also kept in this browser, so the tool opens at once and refreshes in the background
+const CACHE_KEY = 'imsEntry.cache';
+function cacheSave(a) { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: nowStr(), url: S.url, data: a })); } catch (e) { try { localStorage.removeItem(CACHE_KEY); } catch (x) {} } }
+function cacheRead() { try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && c.url === S.url ? c : null; } catch (e) { return null; } }
+async function fetchAll() {
+  let a = await api('all'), b;
+  if (!a.ok && /unknown action/i.test(a.error || '')) { [a, b] = await Promise.all([api('load'), api('log')]); a.log = b; }  // older sheet script
+  if (!a.ok) throw new Error(a.error);
+  if (!a.log || a.log.ok === false) throw new Error((a.log && a.log.error) || 'Could not read STOCK IN / STOCK OUT');
+  return a;
+}
+function useData(a, label) {
+  ingest(a); S.log = { IN: a.log.IN.slice(), OUT: a.log.OUT.slice() };
+  OB.items.filter(i => i.state !== 'done').forEach(applyLocal);   // saves not yet on the sheet
+  S.an = analyze(S.log);
+  S.ready = true;
+  setConn(label ? 'warn' : 'ok', label || ('Connected · ' + S.products.length + ' products'));
+  fillCats(); renderViews();
+}
 async function loadAll(opts) {
   const quiet = opts && opts.quiet;
-  if (!quiet) setConn('', 'Loading…');
+  if (!quiet && !S.ready) setConn('', 'Loading…');
+  if (!quiet && S.ready) setConn('warn', 'Updating…');
   try {
-    let a = await api('all'), b;
-    if (!a.ok && /unknown action/i.test(a.error || '')) { [a, b] = await Promise.all([api('load'), api('log')]); }  // older sheet script
-    else b = a.log;
-    if (!a.ok) throw new Error(a.error); if (!b || b.ok === false) throw new Error((b && b.error) || 'Could not read STOCK IN / STOCK OUT');
-    ingest(a); S.log = { IN: b.IN, OUT: b.OUT };
-    OB.items.filter(i => i.state !== 'done').forEach(applyLocal);   // saves not yet on the sheet
-    S.an = analyze(S.log);
-    S.ready = true; S.loadedAt = Date.now();
-    setConn('ok', 'Connected · ' + S.products.length + ' products');
-    fillCats(); renderViews();
+    const a = await fetchAll();
+    useData(a);
+    S.loadedAt = Date.now();
     if (!quiet) refreshGrids();
+    cacheSave(a);
     obSync();
   } catch (e) {
     if (quiet) return;
-    setConn('bad', 'Not connected'); S.ready = false;
-    if (/wrong password|password not set/i.test(e.message || '')) { $('gMsg').textContent = e.message; $('gUser').value = S.user; $('gate').hidden = false; }
-    $('dashBody').innerHTML = '<div class="card msg bad">' + esc(e.message || e) + '</div>';
+    if (/wrong password|password not set/i.test(e.message || '')) { S.ready = false; setConn('bad', 'Not connected'); $('gMsg').textContent = e.message; $('gUser').value = S.user; $('gate').hidden = false; return; }
+    if (S.ready) { setConn('bad', 'Offline · showing saved copy'); return; }
+    setConn('bad', 'Not connected');
+    $('dashBody').innerHTML = '<div class="card msg bad">' + esc(e.message === 'Failed to fetch' ? 'Could not reach the sheet script. Check the internet connection.' : e.message || e) + '</div>';
   }
 }
 
 function ingest(a) {
   S.products = a.products; S.pmap = new Map(); S.plow = new Map(); S.pcompact = new Map(); S.gen = new Map(); S.aliases = new Map();
+  S.products.forEach((p, i) => { p.i = i; });
+  S.settings = a.settings || {};
   for (const p of S.products) { S.pmap.set(norm(p.p), p); S.plow.set(p.p.toLowerCase(), p); if (!S.pcompact.has(compact(p.p))) S.pcompact.set(compact(p.p), p); }
   for (const [g, actual] of a.general || []) { const p = S.pmap.get(norm(g)); if (p && !S.gen.has(compact(actual))) S.gen.set(compact(actual), p); }
   for (const al of a.aliases || []) { const p = S.pmap.get(norm(al.prod)); if (p) S.aliases.set(norm(al.src), Object.assign({}, al, { prod: p.p })); }
@@ -1221,10 +1252,10 @@ function renderNeg() {
     h += '</tbody></table>';
     if (!list.length) h = '<p class="muted">Nothing here' + (negView === 'open' ? ' — no open negatives.' : '.') + '</p>';
   } else if (negView === 'total') {
-    const list = an.totals.filter(t => !q || norm(t.prod).includes(q));
-    h = '<p class="muted small">Products below zero when WH + BB1 + BB2 are added together. These cannot be explained by a wrong godown — an IN entry is missing or an OUT is too big.</p><table><thead><tr><th>Product</th><th class="n">Total</th><th class="n">WH</th><th class="n">BB1</th><th class="n">BB2</th></tr></thead><tbody>' +
-      list.map(t => '<tr><td>' + esc(t.prod) + '</td><td class="n">' + fmtN(t.total) + '</td>' + t.by.map(([, b]) => '<td class="n">' + fmtN(b) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
-    if (!list.length) h = '<p class="muted">No product is negative in total.</p>';
+    const list = an.totals.filter(t => (!q || norm(t.prod).includes(q)) && (!loc || t.by.some(([l, b]) => l === loc && b < -0.0005)));
+    h = '<p class="muted small">Products below zero when WH + BB1 + BB2 are added together' + (loc ? ', and negative in ' + loc : '') + '. These cannot be explained by a wrong godown: an IN entry is missing or an OUT is too big.</p><table><thead><tr><th>Product</th><th class="n">Total</th><th class="n">WH</th><th class="n">BB1</th><th class="n">BB2</th></tr></thead><tbody>' +
+      list.map(t => '<tr><td>' + esc(t.prod) + '</td><td class="n neg">' + fmtN(t.total) + '</td>' + t.by.map(([l, b]) => '<td class="n' + (b < 0 ? ' neg' : '') + '"' + (l === loc ? ' style="font-weight:700"' : '') + '>' + fmtN(b) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
+    if (!list.length) h = '<p class="muted">No product is negative in total' + (loc ? ' with ' + loc + ' below zero' : '') + '.</p>';
   }
   $('negBody').innerHTML = h; $('negBody').classList.remove('muted');
 }
@@ -1269,7 +1300,7 @@ const UNIT_LABEL = { pcs: 'pcs', kg: 'kg', bag: 'bag (25kg)' };
 function totOf(p) { return r3((p.WH || 0) + (p.BB1 || 0) + (p.BB2 || 0)); }
 function statusOf(p) {
   const t = totOf(p);
-  if (t < 0 || LOCS.some(l => (p[l] || 0) < 0)) return 'neg';
+  if (t < 0) return 'neg';   // a negative godown with a positive total is shown by its total
   if (t === 0) return 'zero';
   const lv = S.levels.get(norm(p.p));
   if (lv && lv.red != null && t <= lv.red) return 'danger';
@@ -1298,13 +1329,57 @@ function daysLeft(p) {
   if (s <= 0 || t <= 0) return null;
   return Math.floor(t / (s / 30));
 }
+// Category display order: the order saved in Settings, then any other categories in sheet order (never A–Z)
+function catOrder() {
+  const sheet = []; for (const p of S.products) if (p.c && !sheet.includes(p.c)) sheet.push(p.c);
+  const saved = ((S.settings && S.settings.categoryOrder) || []).filter(c => sheet.includes(c));
+  return saved.concat(sheet.filter(c => !saved.includes(c)));
+}
+function catIndexMap() { const m = new Map(); catOrder().forEach((c, i) => m.set(c, i)); return m; }
 function fillCats() {
-  const cats = [...new Set(S.products.map(p => p.c).filter(Boolean))].sort();
+  const cats = catOrder();
   for (const id of ['fCat', 'mvCat', 'lowCat', 'slowCat']) {
     const el = $(id), cur = el.value;
     el.innerHTML = '<option value="">All categories</option>' + cats.map(c => '<option' + (c === cur ? ' selected' : '') + '>' + esc(c) + '</option>').join('');
   }
+  renderCatOrder();
 }
+// Settings: category order editor
+let CO = null;
+function renderCatOrder() {
+  const el = $('catOrderBox'); if (!el || !S.products.length) return;
+  if (!CO) CO = catOrder();
+  const counts = new Map(); S.products.forEach(p => counts.set(p.c, (counts.get(p.c) || 0) + 1));
+  el.innerHTML = CO.map((c, i) => '<li draggable="true" data-ci="' + i + '"><span class="grip" aria-hidden="true">⋮⋮</span><span class="cn">' + esc(c) + '</span><span class="muted small">' + (counts.get(c) || 0) + ' items</span>' +
+    '<button class="x" data-co="up" data-ci="' + i + '" aria-label="Move up"' + (i ? '' : ' disabled') + '>↑</button><button class="x" data-co="down" data-ci="' + i + '" aria-label="Move down"' + (i < CO.length - 1 ? '' : ' disabled') + '>↓</button></li>').join('');
+  const st = S.settings || {};
+  $('catOrderInfo').textContent = st.updated ? 'Last saved ' + st.updated + (st.by ? ' by ' + st.by : '') + '. Used for every category list and the default sort.' : 'Not saved yet: sheet order is used. Used for every category list and the default sort.';
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-co]'); if (!b) return;
+  const i = +b.dataset.ci, j = b.dataset.co === 'up' ? i - 1 : i + 1;
+  if (j < 0 || j >= CO.length) return;
+  [CO[i], CO[j]] = [CO[j], CO[i]]; renderCatOrder(); $('catOrderMsg').innerHTML = '<span class="tag t-warn">Not saved</span>';
+});
+let dragI = null;
+document.addEventListener('dragstart', e => { const li = e.target.closest && e.target.closest('#catOrderBox li'); if (li) { dragI = +li.dataset.ci; e.dataTransfer.effectAllowed = 'move'; } });
+document.addEventListener('dragover', e => { if (dragI != null && e.target.closest && e.target.closest('#catOrderBox li')) e.preventDefault(); });
+document.addEventListener('drop', e => {
+  const li = e.target.closest && e.target.closest('#catOrderBox li'); if (dragI == null || !li) return;
+  e.preventDefault(); const to = +li.dataset.ci; const [m] = CO.splice(dragI, 1); CO.splice(to, 0, m); dragI = null;
+  renderCatOrder(); $('catOrderMsg').innerHTML = '<span class="tag t-warn">Not saved</span>';
+});
+document.addEventListener('dragend', () => { dragI = null; });
+async function saveCatOrder(order) {
+  $('catOrderMsg').innerHTML = '<span class="muted">Saving…</span>';
+  try {
+    const j = await api('setSettings', { categoryOrder: order });
+    if (!j.ok) throw new Error(j.error || 'Update Code.gs to v1.5.0 to save the category order');
+    S.settings = j.settings; CO = null; fillCats(); renderViews();
+    $('catOrderMsg').innerHTML = '<span class="tag t-ok">Saved for everyone</span>';
+  } catch (e) { $('catOrderMsg').innerHTML = '<span class="tag t-bad">' + esc(e.message) + '</span>'; }
+}
+
 function histHtml(prod, loc, cols) {
   let run = 0; const rows = [];
   for (const m of S.an.mv) if (m.known && m.prod === prod && (!loc || m.loc === loc)) { run = r3(run + m.qty); rows.push([m, run]); }
@@ -1321,7 +1396,7 @@ function sortRows(list, st, get) {
 }
 
 /* ───────── DASHBOARD ───────── */
-const DS = { col: 'p', dir: 1, all: false };
+const DS = { col: 'c', dir: 1, all: false };
 function renderDash() {
   const an = S.an; if (!an || !S.stats) return;
   const st = { in: 0, low: 0, danger: 0, zero: 0, neg: 0 };
@@ -1335,7 +1410,7 @@ function renderDash() {
     stat('', S.products.length, 'Items', st.in + ' in stock · ' + st.zero + ' zero', 'f:') +
     stat(st.danger ? 'bad' : 'ok', st.danger, 'Danger stock', 'at or below red level', 'f:danger') +
     stat(st.low ? 'warn' : 'ok', st.low, 'Low stock', 'at or below green level', 'f:low') +
-    stat(st.neg ? 'bad' : 'ok', st.neg, 'Negative items', open.length + ' open negatives by godown', 'neg:open') +
+    stat(st.neg ? 'bad' : 'ok', st.neg, 'Negative in total', open.length + ' negatives in single godowns', 'neg:total') +
     stat(issues ? 'warn' : 'ok', issues, 'Data issues', 'names, one-sided transfers…', 'issues') +
     stat(prodToday && salesToday ? 'ok' : 'warn', todayIn + todayOut, 'Rows dated today', 'Production ' + (prodToday ? '✓' : '—') + ' · Sales ' + (salesToday ? '✓' : '—'), 'entries') +
     '</div>';
@@ -1352,7 +1427,8 @@ function renderStock() {
   if (!S.stats) return;
   const q = norm($('fSearch').value), cat = $('fCat').value, loc = $('fLoc').value, fs = $('fStatus').value;
   let list = S.products.filter(p => (!q || norm(p.p).includes(q) || norm(p.c).includes(q)) && (!cat || p.c === cat) && (!loc || (p[loc] || 0) !== 0) && (!fs || statusOf(p) === fs));
-  const get = (p, c) => c === 'p' ? p.p.toLowerCase() : c === 'c' ? (p.c || '').toLowerCase() : c === 'tot' ? totOf(p) : c === 'sold' ? (S.stats.sold30.get(p.p) || 0) : c === 'days' ? daysLeft(p) : c === 'st' ? ['neg', 'danger', 'low', 'zero', 'in'].indexOf(statusOf(p)) : (p[c] || 0);
+  const ci = catIndexMap();
+  const get = (p, c) => c === 'p' ? p.p.toLowerCase() : c === 'c' ? (ci.has(p.c) ? ci.get(p.c) : 999) * 100000 + p.i : c === 'tot' ? totOf(p) : c === 'sold' ? (S.stats.sold30.get(p.p) || 0) : c === 'days' ? daysLeft(p) : c === 'st' ? ['neg', 'danger', 'low', 'zero', 'in'].indexOf(statusOf(p)) : (p[c] || 0);
   sortRows(list, DS, get);
   const n = list.length, show = DS.all ? list : list.slice(0, 200);
   const cols = [['p', 'Item'], ['c', 'Category'], ['WH', 'WH', 1], ['BB1', 'BB1', 1], ['BB2', 'BB2', 1], ['tot', 'Total', 1], ['', 'Unit'], ['sold', 'Sold 30 days', 1], ['days', 'Days left', 1], ['st', 'Status']];
@@ -1398,7 +1474,7 @@ function setupPeriod(id, render) {
 function rangeLabel(r) { return r[0] === r[1] ? keyStr(r[0]) : keyStr(r[0]) + ' to ' + keyStr(r[1]); }
 
 /* ───────── Top movers ───────── */
-let topN = 20;
+let topN = 20, topMode = 'cat';
 function renderTop() {
   if (!S.an) return;
   const r = periodRange(RP.top); if (!r) return;
@@ -1420,7 +1496,18 @@ function renderTop() {
         top.map((x, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + esc(x.prod) + (x.bag ? ' <span class="muted small">(bags×25)</span>' : '') + '<div class="small muted">' + esc(x.cat) + '</div></td><td class="n"><b>' + fmtN(x.qty) + '</b></td><td style="width:64px"><span class="share" style="width:' + Math.max(2, Math.round(56 * x.qty / max)) + 'px"></span></td><td class="n">' + x.n + '</td></tr>').join('') +
         '</tbody></table></div>' : '<p class="muted">No sales in this period.</p>') + '</div>';
   };
-  $('topBody').innerHTML = box('Top ' + topN + ' by pieces', pcs, 'pcs') + box('Top ' + topN + ' by weight', kg, 'kg');
+  if (topMode === 'unit') { $('topBody').innerHTML = box('Top ' + topN + ' by pieces', pcs, 'pcs') + box('Top ' + topN + ' by weight', kg, 'kg'); return; }
+  // by item category, in the category order from Settings
+  const byCat = new Map();
+  for (const x of pcs.concat(kg)) { const p = prodObj(x.prod); x.u = p ? unitOf(p) : 'pcs'; if (!byCat.has(x.cat)) byCat.set(x.cat, []); byCat.get(x.cat).push(x); }
+  const cats = catOrder().filter(c => byCat.has(c)).concat([...byCat.keys()].filter(c => !catOrder().includes(c)));
+  $('topBody').innerHTML = cats.length ? cats.map(c => {
+    const list = byCat.get(c).sort((a, b) => b.qty - a.qty), top = list.slice(0, topN), max = top[0].qty || 1;
+    return '<div class="card"><h2>' + esc(c || 'No category') + '</h2><p class="muted small">' + rangeLabel(r) + (loc ? ' · ' + loc : '') + ' · ' + list.length + ' items sold' + (list.length > topN ? ', top ' + topN + ' shown' : '') + '</p>' +
+      '<div class="tw"><table><thead><tr><th class="n">#</th><th>Item</th><th class="n">Qty</th><th></th><th class="n">Entries</th></tr></thead><tbody>' +
+      top.map((x, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + esc(x.prod) + '</td><td class="n"><b>' + fmtN(x.qty) + '</b> <span class="muted small">' + (x.u === 'pcs' ? 'pcs' : 'kg') + '</span></td><td style="width:64px"><span class="share" style="width:' + Math.max(2, Math.round(56 * x.qty / max)) + 'px"></span></td><td class="n">' + x.n + '</td></tr>').join('') +
+      '</tbody></table></div></div>';
+  }).join('') : '<div class="card"><p class="muted">No sales in ' + rangeLabel(r) + '.</p></div>';
 }
 
 /* ───────── Stock movement ───────── */
@@ -1511,7 +1598,7 @@ document.addEventListener('click', e => {
   const th = e.target.closest('th[data-sort]');
   if (th) {
     const t = th.closest('table'), st = t.id === 'stockTable' ? DS : t.id === 'mvTable' ? MS : t.id === 'lowTable' ? LS : t.id === 'slowTable' ? SL : null; if (!st) return;
-    const c = th.dataset.sort; if (st.col === c) st.dir = -st.dir; else { st.col = c; st.dir = (c === 'p' || c === 'c') ? 1 : -1; }
+    const c = th.dataset.sort; if (st.col === c) st.dir = -st.dir; else { st.col = c; st.dir = (c === 'p' || c === 'c' || c === 'cat') ? 1 : -1; }
     ({ stockTable: renderStock, mvTable: renderMove, lowTable: renderLow, slowTable: renderSlow })[t.id](); return;
   }
   if (e.target.id === 'stockAll') { DS.all = true; renderStock(); return; }
@@ -1526,6 +1613,7 @@ document.addEventListener('click', e => {
 ['fSearch', 'fCat', 'fLoc', 'fStatus'].forEach(id => $(id).addEventListener(id === 'fSearch' ? 'input' : 'change', () => { DS.all = false; renderStock(); }));
 ['mvLoc', 'mvCat', 'mvAll'].forEach(id => $(id).addEventListener('change', renderMove)); $('mvSearch').addEventListener('input', renderMove);
 $('topLoc').addEventListener('change', renderTop);
+$('topMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; topMode = b.dataset.m; [...$('topMode').children].forEach(x => x.classList.toggle('on', x === b)); renderTop(); });
 $('topN').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; topN = +b.dataset.n; [...$('topN').children].forEach(x => x.classList.toggle('on', x === b)); renderTop(); });
 $('lowView').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; lowView = b.dataset.v; [...$('lowView').children].forEach(x => x.classList.toggle('on', x === b)); renderLow(); });
 $('lowCat').addEventListener('change', renderLow); $('slowCat').addEventListener('change', renderSlow);
@@ -1633,12 +1721,12 @@ async function signIn(user, key, url, msgEl) {
   S.user = user; S.key = key; S.url = url || DEFAULT_URL;
   msgEl.innerHTML = '<span class="muted">Connecting…</span>';
   try {
-    const j = await api('ping'); if (!j.ok) throw new Error(j.error);
+    const a = await fetchAll();   // checks the password and loads everything in one request
     store('user', S.user); store('key', S.key); store('url', S.url === DEFAULT_URL ? '' : S.url);
     $('sUser').value = S.user; $('sKey').value = S.key; $('sUrl').value = S.url; showWho();
     msgEl.innerHTML = '';
     $('gate').hidden = true;
-    await loadAll();
+    useData(a); refreshGrids(); cacheSave(a); obSync();
     return true;
   } catch (e) { msgEl.innerHTML = '<span style="color:var(--bad)">' + esc(e.message === 'Failed to fetch' ? 'Could not reach the sheet script. Check the internet connection and the Web app URL.' : e.message) + '</span>'; return false; }
 }
@@ -1653,8 +1741,10 @@ $('sSave').onclick = async () => {
   if (!u || !k) { $('sMsg').innerHTML = '<span class="tag t-bad">Enter your name and the password.</span>'; return; }
   if (await signIn(u, k, $('sUrl').value.trim(), $('sMsg'))) $('sMsg').innerHTML = '<span class="tag t-ok">Connected</span>';
 };
+$('catSave').onclick = () => { if (CO) saveCatOrder(CO.slice()); };
+$('catReset').onclick = () => { CO = []; for (const p of S.products) if (p.c && !CO.includes(p.c)) CO.push(p.c); renderCatOrder(); $('catOrderMsg').innerHTML = '<span class="tag t-warn">Not saved</span>'; };
 $('sOut').onclick = () => {
-  store('key', ''); S.key = ''; S.ready = false; $('sKey').value = ''; $('gKey').value = '';
+  store('key', ''); S.key = ''; S.ready = false; try { localStorage.removeItem(CACHE_KEY); } catch (e) {} $('sKey').value = ''; $('gKey').value = '';
   $('gUser').value = S.user; $('gMsg').textContent = ''; $('gate').hidden = false; setConn('', 'Not connected');
 };
 
@@ -1662,7 +1752,11 @@ $('ver').textContent = VERSION;
 S.url = recall('url') || DEFAULT_URL; S.key = recall('key'); S.user = recall('user');
 $('sUrl').value = S.url; $('sKey').value = S.key; $('sUser').value = S.user; $('gUser').value = S.user; showWho();
 showTab('dash');
-if (S.key && S.user) loadAll(); else { $('gate').hidden = false; setTimeout(() => (S.user ? $('gKey') : $('gUser')).focus(), 50); }
+if (S.key && S.user) {
+  const c = cacheRead();
+  if (c) { try { useData(c.data, 'Saved copy ' + c.at + ' · updating…'); } catch (e) {} }
+  loadAll();
+} else { $('gate').hidden = false; setTimeout(() => (S.user ? $('gKey') : $('gUser')).focus(), 50); }
 </script>
 </body>
 </html>
