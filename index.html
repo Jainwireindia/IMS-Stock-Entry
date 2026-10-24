@@ -310,7 +310,7 @@ a.il:hover{color:var(--brand)}
 <section class="tab" id="t-prod">
   <div class="card">
     <h2>Upload the day's production file</h2>
-    <p class="muted small">Every item line is added to STOCK IN as type Production, at BB1 or BB2 as in the file.</p>
+    <p class="muted small">Every item line is added to STOCK IN as type Production, at BB1 or BB2 as in the file. The kg of each line (TOTAL column) is added to STOCK OUT as Usage of the wire it was made from.</p>
     <div class="drop" id="prodDrop"><b>Drop the Production .xlsx here</b>or click to choose a file<input type="file" id="prodFile" accept=".xlsx,.xls" hidden></div>
     <div id="prodMsg"></div>
   </div>
@@ -318,8 +318,9 @@ a.il:hover{color:var(--brand)}
     <div class="row"><b id="prodTitle"></b><span class="sp"></span>
       <label>Date <input class="date" id="prodDate" placeholder="dd-mm-yyyy" inputmode="numeric"></label></div>
     <div class="checks" id="prodChecks"></div>
-    <div class="row" style="margin:8px 0"><button class="b" id="prodConfirmAll">Accept all suggested names</button><span class="muted small">Names you confirm are remembered for next time.</span></div>
+    <div class="row" style="margin:8px 0"><button class="b" id="prodConfirmAll">Accept all suggestions</button><span class="muted small">Names and wires you confirm are remembered for next time.</span></div>
     <div class="tw"><table id="prodTable"></table></div>
+    <div id="prodUsage" style="margin-top:12px"></div>
     <div class="sticky-save row"><button class="b p" id="prodSave">Save</button><button class="b" id="prodClear">Clear</button><span id="prodSaveMsg"></span></div>
   </div>
 </section>
@@ -483,11 +484,12 @@ a.il:hover{color:var(--brand)}
 </div>
 
 <datalist id="dlp"></datalist>
+<datalist id="dlw"></datalist>
 <datalist id="dlc"></datalist>
 
 <script>
 'use strict';
-const VERSION = 'v1.8.0';
+const VERSION = 'v1.9.0';
 const LOCS = ['WH', 'BB1', 'BB2'];
 const IN_TYPES = ['Purchase', 'Return', 'Production', 'Stock Correction', 'Opening balance'];
 const OUT_TYPES = ['Sales', 'Usage', 'Stock correction'];
@@ -622,6 +624,9 @@ function ingest(a) {
   for (const p of S.products) { S.pmap.set(norm(p.p), p); S.plow.set(p.p.toLowerCase(), p); if (!S.pcompact.has(compact(p.p))) S.pcompact.set(compact(p.p), p); }
   for (const [g, actual] of a.general || []) { const p = S.pmap.get(norm(g)); if (p && !S.gen.has(compact(actual))) S.gen.set(compact(actual), p); }
   for (const al of a.aliases || []) { const p = S.pmap.get(norm(al.prod)); if (p) S.aliases.set(norm(al.src), Object.assign({}, al, { prod: p.p })); }
+  // Wire used for production (TOOL ALIASES column G): by production name, and by product as a fallback
+  S.wires = new Map(); S.wireByProd = new Map();
+  for (const al of a.aliases || []) if (al.wire) rememberWire(al.src, al.prod, al.wire);
   // Varient and item finder tab: other names of each product (wins over older learned names; keeps godown / Nos-Total memory)
   let fv = 0;
   for (const [prod, vars] of a.finder || []) {
@@ -638,6 +643,8 @@ function ingest(a) {
   for (const p of S.products) S.cands.push(candOf(p, p.p));
   for (const [g, actual] of a.general || []) { const p = S.pmap.get(norm(g)); if (p) S.cands.push(candOf(p, actual)); }
   $('dlp').innerHTML = S.products.map(p => '<option value="' + esc(p.p) + '">').join('');
+  S.wireProds = S.products.filter(p => /wire/i.test(p.c) && !/mesh|barbed|nail/i.test(p.c + ' ' + p.p));
+  $('dlw').innerHTML = '<option value="No wire">' + S.wireProds.map(p => '<option value="' + esc(p.p) + '">').join('');
   S.cats = [...new Set(S.products.map(p => p.c).filter(Boolean))].sort();
   $('dlc').innerHTML = S.cats.map(c => '<option value="' + esc(c) + '">').join('');
 }
@@ -782,6 +789,95 @@ function parseLoading(aoa, fileName) {
   return { date, title, rows };
 }
 
+/* ───────── wire used for production ───────── */
+// A production line uses wire: its kg (TOTAL column) goes to STOCK OUT as Usage of that wire, at the same godown.
+// The wire is learned once per production name (TOOL ALIASES column G); "-" means the line uses no wire.
+function rememberWire(src, prod, wire) {
+  if (!src || !wire) return;
+  S.wires.set(norm(src), wire);
+  const pk = norm(prod); if (!pk) return;
+  const cur = S.wireByProd.get(pk);
+  S.wireByProd.set(pk, cur === undefined || cur === wire ? wire : null);   // null = this product is made from different wires
+}
+function wireParts(w) { return !w || w === '-' ? [] : w.split(/\s*\+\s*/).filter(Boolean); }
+function canonWire(text) {
+  const t = String(text || '').trim();
+  if (!t) return '';
+  if (/^(-|no wire|none|no)$/i.test(t)) return '-';
+  const parts = wireParts(t).map(canon);
+  return parts.length && parts.every(Boolean) ? parts.join(' + ') : null;   // null = not a product name
+}
+function wireMm(name) { const m = norm(name).match(/(\d+(?:\.\d+)?)\s*mm/); return m ? +m[1] : null; }
+function wireThick(src) {
+  const mm = wireMm(src); if (mm != null) return mm;
+  const n = nums(String(src).replace(/\d+\/\d+/g, ''));
+  return n.length >= 3 && n[2] >= 1 && n[2] <= 6.5 ? n[2] : null;   // 40x40x2.9x4x12 → 2.9
+}
+const WIRE_FAM = {
+  tata: n => /^tata wire\b/.test(n), ayush: n => /^tata ayush wire\b/.test(n), supreme: n => /^supreme wire\b/.test(n),
+  hb: n => /^hb wire\b/.test(n), ss: n => /^ss wire\b/.test(n), gi: n => /^gi wire\b/.test(n)
+};
+function wireFamilies(src) {
+  const w = words(src);
+  if (w.has('nylon') || w.has('pvc')) return [];
+  const f = [];
+  if (w.has('ayush')) f.push('ayush'); else if (w.has('tata')) f.push('tata');
+  if (w.has('supreme')) f.push('supreme');
+  if (w.has('hb')) f.push('hb');
+  if (w.has('ss')) f.push('ss');
+  return f.length ? f : ['gi'];
+}
+function nearestWire(fam, mm) {
+  let best = [], bd = 0.16;
+  for (const p of S.wireProds || []) {
+    if (!WIRE_FAM[fam](norm(p.p))) continue;
+    const d = wireMm(p.p); if (d == null) continue;
+    const e = Math.abs(d - mm);
+    if (e < bd - 1e-9) { bd = e; best = [p.p]; } else if (Math.abs(e - bd) < 1e-9) best.push(p.p);
+  }
+  return best;   // e.g. Supreme has Printed and Non Printed of the same size
+}
+function resolveWire(r) {
+  const k = norm(r.src);
+  if (S.wires.has(k)) return { wire: S.wires.get(k), wireHow: 'learned', wireAlts: [] };
+  const byP = r.prod ? S.wireByProd.get(norm(r.prod)) : null;
+  if (byP) return { wire: byP, wireHow: 'item', wireAlts: [] };
+  const mm = wireThick(r.src), fams = wireFamilies(r.src);
+  if (mm == null || !fams.length) return { wire: '', wireHow: 'pick', wireAlts: [] };
+  const found = fams.map(f => nearestWire(f, mm));
+  if (found.some(x => !x.length)) return { wire: '', wireHow: 'pick', wireAlts: [].concat(...found) };
+  return { wire: found.map(x => x[0]).join(' + '), wireHow: 'suggested', wireAlts: found.length === 1 ? found[0].slice(1) : [] };
+}
+function wireOpen(r) { return r.wireHow === 'suggested' || r.wireHow === 'pick' || !r.wire; }
+function wireTag(r) {
+  return ({ learned: '<span class="tag t-ok">✓ learned</span>', item: '<span class="tag t-ok">✓ same item</span>', manual: '<span class="tag t-ok">✓ chosen</span>',
+    suggested: '<span class="tag t-warn">check</span>' })[r.wireHow] || '<span class="tag t-bad">pick wire</span>';
+}
+function wireCell(r, i) {
+  const at = 'data-g="prod" data-i="' + i + '"';
+  let h = '<input class="pin' + (wireOpen(r) ? ' bad' : '') + '" list="dlw" ' + at + ' data-f="wire" value="' + esc(r.wire === '-' ? 'No wire' : r.wire) + '" placeholder="Wire used">';
+  if (wireOpen(r)) h += '<div class="chips">' + (r.wireHow === 'suggested' && r.wire ? '<button class="chip" ' + at + ' data-act="wok">✓ use this</button>' : '') +
+    (r.wireAlts || []).slice(0, 3).map(w => '<button class="chip" ' + at + ' data-act="wpick" data-p="' + esc(w) + '">' + esc(w) + '</button>').join('') +
+    '<button class="chip" ' + at + ' data-act="wpick" data-p="-">No wire</button></div>';
+  return h;
+}
+function usageKg(r) {
+  if (r.unit === 'kg') return r.qty || 0;
+  if (!(r.kgLine > 0) || !(r.qty0 > 0)) return 0;
+  return r.kgLine * (r.qty || 0) / r.qty0;   // follows a changed Nos
+}
+function usageRows(g) {
+  const m = new Map();
+  for (const r of g.rows) {
+    if (r.skip) continue;
+    const parts = wireParts(r.wire); if (!parts.length) continue;
+    const kg = usageKg(r) / parts.length;
+    for (const w of parts) { const k = w + '|' + r.loc; const o = m.get(k) || { prod: w, loc: r.loc, kg: 0, from: [] }; o.kg += kg; o.from.push(r.src); m.set(k, o); }
+  }
+  return [...m.values()].map(o => Object.assign(o, { kg: Math.round(o.kg * 100) / 100 })).filter(o => o.kg > 0);
+}
+function prodUsageOn() { try { return localStorage.getItem('imsEntry.prodUsage') !== 'off'; } catch (e) { return true; } }
+
 /* ───────── PRODUCTION tab ───────── */
 function setupDrop(dropId, fileId, handler) {
   const d = $(dropId), f = $(fileId);
@@ -799,7 +895,7 @@ async function onProdFile(file) {
     const aoa = await readXlsx(file);
     const p = parseProduction(aoa, file.name);
     if (!p.rows.length) throw new Error('No production rows found. Is this the daily Production file?');
-    G.prod = { fileName: file.name, fileTotal: p.fileTotal, kgSum: p.kgSum, rows: p.rows.map(r => Object.assign(r, resolveName(r.src))) };
+    G.prod = { fileName: file.name, fileTotal: p.fileTotal, kgSum: p.kgSum, rows: p.rows.map(r => { Object.assign(r, resolveName(r.src)); r.qty0 = r.qty; Object.assign(r, resolveWire(r)); return r; }) };
     $('prodDate').value = p.date || todayStr();
     $('prodTitle').textContent = file.name + ' · ' + p.rows.length + ' rows';
     $('prodCard').hidden = false; renderProd();
@@ -825,20 +921,32 @@ function renderProd() {
   if (prev) ck.push('<div><span class="tag t-warn">!</span> A production file for ' + esc(date) + ' was already saved by this tool on ' + esc(prev.at) + '.</div>');
   const open = g.rows.filter(r => !r.skip && (!r.prod || r.how === 'suggested' || r.how === 'new')).length;
   if (open) ck.push('<div><span class="tag t-warn">' + open + '</span> name(s) need your confirmation before saving.</div>');
+  const useOn = prodUsageOn();
+  const wOpen = useOn ? g.rows.filter(r => !r.skip && wireOpen(r)).length : 0;
+  if (wOpen) ck.push('<div><span class="tag t-warn">' + wOpen + '</span> line(s) need the wire used. Pick it once — it is remembered for that production name.</div>');
+  const exU = useOn ? existingRows('OUT', date, 'Usage') : [];
+  if (exU.length) ck.push('<div><span class="tag t-warn">!</span> STOCK OUT already has ' + exU.length + ' Usage rows dated ' + esc(date) + ' (rows ' + exU.slice(0, 3).map(r => r[0]).join(', ') + (exU.length > 3 ? '…' : '') + '). If they are for this production, untick "Also save wire usage" or the usage will be doubled.</div>');
   $('prodChecks').innerHTML = ck.join('');
 
-  let h = '<thead><tr><th>Godown</th><th>Name in file</th><th>IMS product</th><th></th><th class="n">Qty</th><th class="n">Stock now</th><th></th></tr></thead><tbody>';
+  let h = '<thead><tr><th>Godown</th><th>Name in file</th><th>IMS product</th><th></th><th class="n">Qty</th><th class="n">Stock now</th>' + (useOn ? '<th>Wire used</th><th></th><th class="n">Kg</th>' : '') + '<th></th></tr></thead><tbody>';
   g.rows.forEach((r, i) => {
     h += '<tr class="' + (r.skip ? 'skip' : '') + '"><td><select data-g="prod" data-i="' + i + '" data-f="loc">' + LOCS.map(l => '<option' + (l === r.loc ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></td>' +
       '<td>' + esc(r.src) + (r.unit === 'kg' ? ' <span class="tag t-info">kg</span>' : '') + '</td><td>' + prodCell(r, i, 'prod') + '</td><td>' + howTag(r) + '</td>' +
       '<td class="n"><input class="q" data-g="prod" data-i="' + i + '" data-f="qty" value="' + r.qty + '" inputmode="decimal"></td>' +
       '<td class="n">' + (r.prod ? fmtN(stockAt(r.prod, r.loc)) : '') + '</td>' +
+      (useOn ? '<td>' + wireCell(r, i) + '</td><td>' + wireTag(r) + '</td><td class="n small">' + (wireParts(r.wire).length ? fmtN(Math.round(usageKg(r) * 100) / 100) : '—') + '</td>' : '') +
       '<td><button class="x" title="Skip / include" data-g="prod" data-i="' + i + '" data-act="skip">' + (r.skip ? '↺' : '✕') + '</button></td></tr>';
   });
   $('prodTable').innerHTML = h + '</tbody>';
   const n = g.rows.filter(r => !r.skip).length;
-  $('prodSave').textContent = 'Save ' + n + ' rows to STOCK IN';
-  $('prodSave').disabled = !!open || !n || !validDate(date);
+  const us = useOn ? usageRows(g) : [];
+  let u = '<label class="small"><input type="checkbox" id="prodUsageOn"' + (useOn ? ' checked' : '') + '> Also save wire usage to STOCK OUT (type Usage, same date and godown)</label>';
+  if (useOn && us.length) u += '<div class="tw"><table><thead><tr><th>Wire</th><th>Godown</th><th class="n">Usage kg</th><th class="n">Stock now</th><th class="n">After</th><th>From lines</th></tr></thead><tbody>' +
+    us.map(o => { const st = stockAt(o.prod, o.loc), af = r3(st - o.kg); return '<tr><td>' + esc(o.prod) + '</td><td>' + o.loc + '</td><td class="n"><b>' + fmtN(o.kg) + '</b></td><td class="n">' + fmtN(st) + '</td><td class="n"' + (af < 0 ? ' style="color:var(--bad)"' : '') + '>' + fmtN(af) + '</td><td class="small muted">' + esc([...new Set(o.from)].join(', ')) + '</td></tr>'; }).join('') +
+    '</tbody><tfoot><tr><td colspan="2"><b>Total</b></td><td class="n"><b>' + fmtN(r3(us.reduce((s, o) => s + o.kg, 0))) + '</b></td><td colspan="3"></td></tr></tfoot></table></div>';
+  $('prodUsage').innerHTML = u;
+  $('prodSave').textContent = 'Save ' + n + ' rows to STOCK IN' + (us.length ? ' + ' + us.length + ' usage rows to STOCK OUT' : '');
+  $('prodSave').disabled = !!open || !!wOpen || !n || !validDate(date);
 }
 
 /* ───────── LOADING tab ───────── */
@@ -974,6 +1082,10 @@ document.addEventListener('change', e => {
     const c = canon(t.value);
     r.prod = c; r.how = c ? 'manual' : 'new'; if (!c && t.value.trim()) r.sugg = suggest(t.value, 5);
     if (g === 'load' && c) { r.alias = S.aliases.get(norm(r.src)) || null; r.basis = r.basis || defaultBasis(r); }
+    if (g === 'prod' && c && r.wireHow !== 'manual' && r.wireHow !== 'learned') Object.assign(r, resolveWire(r));
+  } else if (f === 'wire') {
+    const w = canonWire(t.value);
+    if (w) { r.wire = w; r.wireHow = 'manual'; } else { r.wire = ''; r.wireHow = 'pick'; }
   } else if (f === 'qty') { const q = parseFloat(t.value); r.qty = isNaN(q) ? null : q; }
   else if (f === 'newName' || f === 'newCat') { r[f] = t.value; return; }
   else r[f] = t.value;
@@ -982,8 +1094,10 @@ document.addEventListener('change', e => {
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t || !t.dataset.g) return;
   const g = t.dataset.g, i = +t.dataset.i, rows = gridRows(g), r = rows[i], a = t.dataset.act;
-  if (a === 'ok') r.how = 'manual';
-  else if (a === 'pick') { r.prod = t.dataset.p; r.how = 'manual'; }
+  if (a === 'ok') { r.how = 'manual'; if (g === 'prod' && r.wireHow !== 'manual' && r.wireHow !== 'learned') Object.assign(r, resolveWire(r)); }
+  else if (a === 'pick') { r.prod = t.dataset.p; r.how = 'manual'; if (g === 'prod' && r.wireHow !== 'manual' && r.wireHow !== 'learned') Object.assign(r, resolveWire(r)); }
+  else if (a === 'wok') r.wireHow = 'manual';
+  else if (a === 'wpick') { r.wire = t.dataset.p; r.wireHow = 'manual'; }
   else if (a === 'skip') r.skip = !r.skip;
   else if (a === 'del') rows.splice(i, 1);
   else if (a === 'loc') r[t.dataset.f || 'loc'] = t.dataset.l;
@@ -1029,6 +1143,7 @@ function applyLocal(it) {
     const p = prodObj(r.prod); if (p) { const d = r.dir === 'IN' ? r.qty : -r.qty; p[r.loc] = r3((p[r.loc] || 0) + d); p.tot = r3((p.tot || 0) + d); }
   });
   (it.payload.aliases || []).forEach(a => {
+    if (a.wire && S.wires) rememberWire(a.src, a.prod, a.wire);
     const p = prodObj(a.prod); if (!p || !a.src || S.pmap.has(norm(a.src))) return;
     const k = norm(a.src); const old = S.aliases.get(k) || {};
     S.aliases.set(k, Object.assign({}, old, { src: a.src, prod: p.p, from: norm(a.src) !== norm(p.p) ? 'finder' : (old.from || ''), basis: a.basis || old.basis, godown: a.godown || old.godown }));
@@ -1207,9 +1322,19 @@ function aliasesFrom(rows) {
 $('prodSave').onclick = () => {
   const g = G.prod, date = $('prodDate').value;
   const live = g.rows.filter(r => !r.skip);
+  const al = aliasesFrom(live.filter(r => r.how !== 'learned' && r.how !== 'exact'));
+  const useOn = prodUsageOn(), rows = live.map(r => ({ dir: 'IN', date, prod: r.prod, qty: r.qty, loc: r.loc, type: 'Production' }));
+  if (useOn) {
+    usageRows(g).forEach(o => rows.push({ dir: 'OUT', date, prod: o.prod, qty: o.kg, loc: o.loc, type: 'Usage' }));
+    // remember the wire per production name (TOOL ALIASES column G)
+    live.forEach(r => {
+      if (!r.wire || S.wires.get(norm(r.src)) === r.wire) return;
+      const x = al.find(y => norm(y.src) === norm(r.src));
+      if (x) x.wire = r.wire; else al.push({ src: r.src, prod: r.prod, wire: r.wire });
+    });
+  }
   doSave('production', {
-    rows: live.map(r => ({ dir: 'IN', date, prod: r.prod, qty: r.qty, loc: r.loc, type: 'Production' })),
-    aliases: aliasesFrom(live.filter(r => r.how !== 'learned' && r.how !== 'exact')),
+    rows, aliases: al,
     imp: { kind: 'production', fileDate: date, fileName: g.fileName }
   }, $('prodSaveMsg'), $('prodSave'), () => { G.prod = null; $('prodCard').hidden = true; }, $('prodMsg'));
 };
@@ -1787,7 +1912,8 @@ $('qDate').addEventListener('input', renderQuick); $('xDate').addEventListener('
 ['prodDate', 'loadDate', 'qDate', 'xDate'].forEach(id => maskDate($(id)));
 $('qDate').value = todayStr(); $('xDate').value = todayStr();
 $('qType').innerHTML = typeOptions('Purchase');
-$('prodConfirmAll').onclick = () => { G.prod.rows.forEach(r => { if (r.how === 'suggested') r.how = 'manual'; }); renderProd(); };
+$('prodConfirmAll').onclick = () => { G.prod.rows.forEach(r => { if (r.how === 'suggested') r.how = 'manual'; if (r.wireHow === 'suggested' && r.wire) r.wireHow = 'manual'; }); renderProd(); };
+document.addEventListener('change', e => { if (e.target.id === 'prodUsageOn') { try { localStorage.setItem('imsEntry.prodUsage', e.target.checked ? 'on' : 'off'); } catch (x) {} renderProd(); } });
 $('loadConfirmAll').onclick = () => { G.load.rows.forEach(r => { if (r.how === 'suggested') r.how = 'manual'; }); renderLoad(); };
 $('loadAllLoc').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || !G.load) return; G.load.rows.forEach(r => r.loc = b.dataset.l); renderLoad(); });
 $('prodClear').onclick = () => { G.prod = null; $('prodCard').hidden = true; };
