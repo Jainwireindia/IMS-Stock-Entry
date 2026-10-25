@@ -241,6 +241,7 @@ a.il:hover{color:var(--brand)}
     <label>Password<input id="gKey" type="password" autocomplete="current-password" required></label>
     <button class="b p" type="submit" id="gGo">Start</button>
     <div id="gMsg" class="small"></div>
+    <div class="small muted" id="gVer" style="margin-top:10px"></div>
   </form>
 </div>
 <div class="app">
@@ -1970,7 +1971,7 @@ $('sOut').onclick = () => {
   $('gUser').value = S.user; $('gMsg').textContent = ''; $('gate').hidden = false; setConn('', 'Not connected');
 };
 
-$('ver').textContent = VERSION;
+$('ver').textContent = VERSION; $('gVer').textContent = VERSION + '. Supports Sheet Script v1.6.0';
 S.url = recall('url') || DEFAULT_URL; S.key = recall('key'); S.user = recall('user');
 $('sUrl').value = S.url; $('sKey').value = S.key; $('sUser').value = S.user; $('gUser').value = S.user; showWho();
 showTab('dash');
