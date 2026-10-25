@@ -298,7 +298,7 @@ a.il:hover{color:var(--brand)}
     <div class="row filters">
       <input id="fSearch" placeholder="Search item" style="min-width:200px;flex:1">
       <select id="fCat"><option value="">All categories</option></select>
-      <select id="fLoc"><option value="">All godowns</option><option>WH</option><option>BB1</option><option>BB2</option></select>
+      <select id="fLoc"><option value="">All godowns</option><option>WH</option><option>BB2</option><option>BB1</option></select>
       <select id="fStatus"><option value="">Any status</option><option value="in">In stock</option><option value="low">Low</option><option value="danger">Danger</option><option value="zero">Zero</option><option value="neg">Negative</option></select>
     </div>
     <div class="tw"><table id="stockTable" class="sortable"></table></div>
@@ -311,7 +311,7 @@ a.il:hover{color:var(--brand)}
 <section class="tab" id="t-prod">
   <div class="card">
     <h2>Upload the day's production file</h2>
-    <p class="muted small">Every item line is added to STOCK IN as type Production, at BB1 or BB2 as in the file. The kg of each line (TOTAL column) is added to STOCK OUT as Usage of the wire it was made from.</p>
+    <p class="muted small">Every item line is added to STOCK IN as type Production, at BB2 or BB1 as in the file. The kg of each line (TOTAL column) is added to STOCK OUT as Usage of the wire it was made from.</p>
     <div class="drop" id="prodDrop"><b>Drop the Production .xlsx here</b>or click to choose a file<input type="file" id="prodFile" accept=".xlsx,.xls" hidden></div>
     <div id="prodMsg"></div>
   </div>
@@ -341,7 +341,7 @@ a.il:hover{color:var(--brand)}
     <div class="row" style="margin:8px 0">
       <button class="b" id="loadConfirmAll">Accept all suggested names</button>
       <span class="muted small">Set every row to:</span>
-      <span class="seg" id="loadAllLoc"><button data-l="WH">WH</button><button data-l="BB1">BB1</button><button data-l="BB2">BB2</button></span>
+      <span class="seg" id="loadAllLoc"><button data-l="WH">WH</button><button data-l="BB2">BB2</button><button data-l="BB1">BB1</button></span>
     </div>
     <div class="tw"><table id="loadTable"></table></div>
     <div class="sticky-save row"><button class="b p" id="loadSave">Save</button><button class="b" id="loadClear">Clear</button><span id="loadSaveMsg"></span></div>
@@ -355,7 +355,7 @@ a.il:hover{color:var(--brand)}
     <div class="row">
       <label>Date <input class="date" id="qDate" placeholder="dd-mm-yyyy" inputmode="numeric"></label>
       <label>Type <select id="qType"></select></label>
-      <label>Godown <select id="qLoc"><option>WH</option><option>BB1</option><option>BB2</option></select></label>
+      <label>Godown <select id="qLoc"><option>WH</option><option>BB2</option><option>BB1</option></select></label>
     </div>
     <p class="muted small">Paste lines like <code>1x1x12x5 4mm 20</code> or <code>Gi Wire 2.5mm - 300 kg</code>. The last number on each line is taken as the quantity.</p>
     <textarea id="qPaste" placeholder="Paste the message here"></textarea>
@@ -374,8 +374,8 @@ a.il:hover{color:var(--brand)}
     <h2>Move stock between godowns</h2>
     <div class="row">
       <label>Date <input class="date" id="xDate" placeholder="dd-mm-yyyy" inputmode="numeric"></label>
-      <label>From <select id="xFrom"><option>BB1</option><option>BB2</option><option>WH</option></select></label>
-      <label>To <select id="xTo"><option>WH</option><option>BB1</option><option>BB2</option></select></label>
+      <label>From <select id="xFrom"><option>WH</option><option>BB2</option><option>BB1</option></select></label>
+      <label>To <select id="xTo"><option>WH</option><option>BB2</option><option>BB1</option></select></label>
     </div>
     <p class="muted small">Paste the transfer message or add rows. From / To above apply to new rows; you can change each row.</p>
     <textarea id="xPaste" placeholder="Paste transfer lines here"></textarea>
@@ -394,7 +394,7 @@ a.il:hover{color:var(--brand)}
     <div class="row ctl"><span class="seg" data-per="top"></span><span class="perCustom" data-perc="top"></span></div>
     <div class="row ctl"><span class="seg" id="topMode"><button data-m="cat" class="on">By item category</button><button data-m="unit">By pieces / weight</button></span></div>
     <div class="row ctl"><span class="seg" id="topN"><button data-n="20" class="on">Top 20</button><button data-n="50">Top 50</button></span>
-      <select id="topLoc"><option value="">All godowns</option><option>WH</option><option>BB1</option><option>BB2</option></select>
+      <select id="topLoc"><option value="">All godowns</option><option>WH</option><option>BB2</option><option>BB1</option></select>
       <span class="muted small">Sales only. Nail bags count as 25 kg.</span></div>
   </div>
   <div id="topBody" class="cols2"></div>
@@ -403,7 +403,7 @@ a.il:hover{color:var(--brand)}
 <section class="tab" id="t-move">
   <div class="card">
     <div class="row ctl"><span class="seg" data-per="move"></span><span class="perCustom" data-perc="move"></span></div>
-    <div class="row ctl"><select id="mvLoc"><option value="">All godowns</option><option>WH</option><option>BB1</option><option>BB2</option></select>
+    <div class="row ctl"><select id="mvLoc"><option value="">All godowns</option><option>WH</option><option>BB2</option><option>BB1</option></select>
       <select id="mvCat"><option value="">All categories</option></select>
       <input id="mvSearch" placeholder="Search item" style="min-width:180px">
       <label class="small"><input type="checkbox" id="mvAll"> Show items with no movement</label></div>
@@ -435,7 +435,7 @@ a.il:hover{color:var(--brand)}
     <p class="muted small">Replays every STOCK IN / STOCK OUT row day by day. A negative starts on the first day a godown's balance ends below zero; the OUT rows of that day are shown as the cause. Rows within one day have no time, so all of a day's entries are counted before checking.</p>
     <div class="row">
       <span class="seg" id="negView"><button data-v="open" class="on">Open now</button><button data-v="all">All (incl. fixed)</button><button data-v="total">Negative in total</button></span>
-      <select id="negLoc"><option value="">All godowns</option><option>WH</option><option>BB1</option><option>BB2</option></select>
+      <select id="negLoc"><option value="">All godowns</option><option>WH</option><option>BB2</option><option>BB1</option></select>
       <input id="negSearch" placeholder="Search product" style="min-width:180px">
     </div>
   </div>
@@ -490,8 +490,8 @@ a.il:hover{color:var(--brand)}
 
 <script>
 'use strict';
-const VERSION = 'v1.9.0';
-const LOCS = ['WH', 'BB1', 'BB2'];
+const VERSION = 'v1.9.1';
+const LOCS = ['WH', 'BB2', 'BB1'];
 const IN_TYPES = ['Purchase', 'Return', 'Production', 'Stock Correction', 'Opening balance'];
 const OUT_TYPES = ['Sales', 'Usage', 'Stock correction'];
 const KG_CATS = ['gi wire', 'supreme gi wire', 'tata gi wire', 'pvc wire', 'ss wire', 'wire', 'barbed wire', 'aluminium coil'];
@@ -1474,7 +1474,7 @@ function renderNeg() {
     if (!list.length) h = '<p class="muted">Nothing here' + (negView === 'open' ? ' — no open negatives.' : '.') + '</p>';
   } else if (negView === 'total') {
     const list = an.totals.filter(t => (!q || norm(t.prod).includes(q)) && (!loc || t.by.some(([l, b]) => l === loc && b < -0.0005)));
-    h = '<p class="muted small">Products below zero when WH + BB1 + BB2 are added together' + (loc ? ', and negative in ' + loc : '') + '. These cannot be explained by a wrong godown: an IN entry is missing or an OUT is too big.</p><table><thead><tr><th>Product</th><th class="n">Total</th><th class="n">WH</th><th class="n">BB1</th><th class="n">BB2</th></tr></thead><tbody>' +
+    h = '<p class="muted small">Products below zero when WH + BB2 + BB1 are added together' + (loc ? ', and negative in ' + loc : '') + '. These cannot be explained by a wrong godown: an IN entry is missing or an OUT is too big.</p><table><thead><tr><th>Product</th><th class="n">Total</th><th class="n">WH</th><th class="n">BB2</th><th class="n">BB1</th></tr></thead><tbody>' +
       list.map(t => '<tr><td>' + esc(t.prod) + '</td><td class="n neg">' + fmtN(t.total) + '</td>' + t.by.map(([l, b]) => '<td class="n' + (b < 0 ? ' neg' : '') + '"' + (l === loc ? ' style="font-weight:700"' : '') + '>' + fmtN(b) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
     if (!list.length) h = '<p class="muted">No product is negative in total' + (loc ? ' with ' + loc + ' below zero' : '') + '.</p>';
   }
@@ -1652,7 +1652,7 @@ function renderStock() {
   const get = (p, c) => c === 'p' ? p.p.toLowerCase() : c === 'c' ? (ci.has(p.c) ? ci.get(p.c) : 999) * 100000 + p.i : c === 'tot' ? totOf(p) : c === 'sold' ? (S.stats.sold30.get(p.p) || 0) : c === 'days' ? daysLeft(p) : c === 'st' ? ['neg', 'danger', 'low', 'zero', 'in'].indexOf(statusOf(p)) : (p[c] || 0);
   sortRows(list, DS, get);
   const n = list.length, show = DS.all ? list : list.slice(0, 200);
-  const cols = [['p', 'Item'], ['c', 'Category'], ['WH', 'WH', 1], ['BB1', 'BB1', 1], ['BB2', 'BB2', 1], ['tot', 'Total', 1], ['', 'Unit'], ['sold', 'Sold 30 days', 1], ['days', 'Days left', 1], ['st', 'Status']];
+  const cols = [['p', 'Item'], ['c', 'Category'], ['WH', 'WH', 1], ['BB2', 'BB2', 1], ['BB1', 'BB1', 1], ['tot', 'Total', 1], ['', 'Unit'], ['sold', 'Sold 30 days', 1], ['days', 'Days left', 1], ['st', 'Status']];
   $('stockTable').innerHTML = sortHead(cols, DS) + '<tbody>' + show.map(p => {
     const dl = daysLeft(p);
     return '<tr><td><a class="il" data-hist="' + esc(p.p) + '|">' + esc(p.p) + '</a></td><td class="small muted">' + esc(p.c) + '</td>' +
@@ -1785,7 +1785,7 @@ function renderLow() {
     .map(p => { const lv = S.levels.get(norm(p.p)); return { p, lv, gap: lv.green != null ? r3(Math.max(0, lv.green - totOf(p))) : null }; });
   sortRows(list, LS, (x, c) => c === 'p' ? x.p.p.toLowerCase() : c === 'tot' ? totOf(x.p) : c === 'gap' ? x.gap : c === 'days' ? daysLeft(x.p) : c === 'sold' ? (S.stats.sold30.get(x.p.p) || 0) : c === 'red' ? x.lv.red : c === 'green' ? x.lv.green : (x.p[c] || 0));
   $('lowNote').textContent = withLv.length + ' items have levels in the Restock Order tab; ' + (S.products.length - withLv.length) + ' have none (not checked).';
-  const cols = [['p', 'Item'], ['', 'Category'], ['WH', 'WH', 1], ['BB1', 'BB1', 1], ['BB2', 'BB2', 1], ['tot', 'Total', 1], ['red', 'Red', 1], ['green', 'Green', 1], ['gap', 'To order', 1], ['sold', 'Sold 30 days', 1], ['days', 'Days left', 1], ['', 'Status']];
+  const cols = [['p', 'Item'], ['', 'Category'], ['WH', 'WH', 1], ['BB2', 'BB2', 1], ['BB1', 'BB1', 1], ['tot', 'Total', 1], ['red', 'Red', 1], ['green', 'Green', 1], ['gap', 'To order', 1], ['sold', 'Sold 30 days', 1], ['days', 'Days left', 1], ['', 'Status']];
   $('lowBody').innerHTML = list.length ? '<table class="sortable" id="lowTable">' + sortHead(cols, LS) + '<tbody>' + list.map(x => { const p = x.p, dl = daysLeft(p);
     return '<tr><td><a class="il" data-hist="' + esc(p.p) + '|">' + esc(p.p) + '</a></td><td class="small muted">' + esc(p.c) + '</td>' + LOCS.map(l => '<td class="n">' + fmtN(p[l] || 0) + '</td>').join('') +
       '<td class="n"><b>' + fmtN(totOf(p)) + '</b></td><td class="n">' + fmtN(x.lv.red) + '</td><td class="n">' + fmtN(x.lv.green) + '</td><td class="n"><b>' + (x.gap == null ? '—' : fmtN(x.gap)) + '</b></td><td class="n">' + fmtN(S.stats.sold30.get(p.p) || 0) + '</td><td class="n">' + (dl == null ? '—' : dl) + '</td><td>' + stTag(statusOf(p)) + '</td></tr><tr hidden></tr>'; }).join('') + '</tbody></table>'
