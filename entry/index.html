@@ -350,7 +350,7 @@ input,select,textarea{font-weight:500}
   </div>
   <div class="card">
     <h2>2 · Chainlink and barbed wire (typed from the photos)</h2>
-    <p class="muted small">One line per item: machine, day / night, the name as it goes in the Excel, rolls and total kg. The wire is filled in for you; type the wire kg used. A sum works too, e.g. <code>5.2+210.71-10.15</code> (B:B + Give − B:L).</p>
+    <p class="muted small">One line per item: machine, day / night, the name as it goes in the Excel, rolls and total kg. The wire is filled in for you and remembered. Type the kg of wire <b>given</b> from stock that day; only that is taken out of stock. Leave it blank or 0 when no new wire was given. A sum works too, e.g. <code>5.2+210.71-10.15</code>.</p>
     <div class="tw"><table id="ptTable"></table></div>
     <div class="row" style="margin-top:8px"><button class="b" data-ptadd="ch1">+ Chainlink M1</button><button class="b" data-ptadd="ch2">+ Chainlink M2</button><button class="b" data-ptadd="barbed">+ Barbed wire</button></div>
   </div>
@@ -485,7 +485,7 @@ input,select,textarea{font-weight:500}
 
 <script>
 'use strict';
-const VERSION = 'v2.0.0';
+const VERSION = 'v2.0.1';
 const SHEET_SCRIPT = 'v2.0.0';
 const DASH_URL = '../';   // the IMS Stock Dashboard (same site, one folder up)
 const LOCS = ['WH', 'BB2', 'BB1'];
@@ -1261,9 +1261,9 @@ function renderTyped() {
   T.forEach((t, i) => {
     const at = 'data-g="pt" data-i="' + i + '"';
     const parts = wireParts(t.wire);
-    const kgCells = parts.length ? parts.map((w, k) => { const v = (t.wkg || [])[k]; const bad = v == null || isNaN(v) || !(v > 0);
+    const kgCells = parts.length ? parts.map((w, k) => { const v = (t.wkg || [])[k]; const bad = v != null && (isNaN(v) || v < 0);
       return '<div class="row" style="gap:4px;flex-wrap:nowrap">' + (parts.length > 1 ? '<span class="small muted" style="min-width:70px">' + esc(w.replace(/ wire/i, '').slice(0, 22)) + '</span>' : '') +
-        '<input class="q' + (bad ? ' bad' : '') + '" style="width:120px" ' + at + ' data-f="wkg" data-wi="' + k + '" value="' + esc((t.wkgTxt || [])[k] || '') + '" placeholder="kg">' + (v > 0 && /[+-]\d/.test((t.wkgTxt || [])[k] || '') ? '<span class="small">= ' + fmtN(v) + '</span>' : '') + '</div>'; }).join('') : '<span class="muted small">—</span>';
+        '<input class="q' + (bad ? ' bad' : '') + '" style="width:120px" ' + at + ' data-f="wkg" data-wi="' + k + '" value="' + esc((t.wkgTxt || [])[k] || '') + '" placeholder="none given">' + (v > 0 && /[+-]\d/.test((t.wkgTxt || [])[k] || '') ? '<span class="small">= ' + fmtN(v) + '</span>' : '') + '</div>'; }).join('') : '<span class="muted small">—</span>';
     h += '<tr><td><select ' + at + ' data-f="sec">' + [['ch1', 'Chainlink M1'], ['ch2', 'Chainlink M2'], ['barbed', 'Barbed wire']].map(([v, l]) => '<option value="' + v + '"' + (t.sec === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></td>' +
       '<td><select ' + at + ' data-f="shift"><option value="day"' + (t.shift === 'day' ? ' selected' : '') + '>Day</option><option value="night"' + (t.shift === 'night' ? ' selected' : '') + '>Night</option></select></td>' +
       '<td><input class="pin' + (t.name ? '' : ' bad') + '" list="dlt" ' + at + ' data-f="name" value="' + esc(t.name) + '" placeholder="e.g. Tata Ch 90x90x2.5mmx5x50"></td>' +
@@ -1320,8 +1320,8 @@ function renderProd() {
   if (wOpen) ck.push('<div><span class="tag t-warn">' + wOpen + '</span> wire(s) to pick. Picked once, they are remembered for that name.</div>');
   const tBad = G.typed.filter(t => t.name && !(t.count > 0 && t.kg > 0)).length;
   if (tBad) ck.push('<div><span class="tag t-warn">' + tBad + '</span> typed line(s) need rolls and total kg.</div>');
-  const kBad = G.typed.filter(t => t.name && !t.skip && wireParts(t.wire).length && (t.wkg || []).some(v => v == null || isNaN(v) || !(v > 0))).length;
-  if (kBad) ck.push('<div><span class="tag t-warn">' + kBad + '</span> typed line(s) need the wire kg used.</div>');
+  const kBad = G.typed.filter(t => t.name && !t.skip && wireParts(t.wire).length && (t.wkg || []).some(v => v != null && (isNaN(v) || v < 0))).length;
+  if (kBad) ck.push('<div><span class="tag t-warn">' + kBad + '</span> typed line(s) have a wire kg that is not a number. Fix it, or leave it blank if no wire was given.</div>');
   const unnamed = G.typed.filter(t => !t.name).length;
   if (unnamed) ck.push('<div><span class="tag t-info">' + unnamed + '</span> typed line(s) without a name are left out.</div>');
   $('prodChecks').innerHTML = ck.join('');
@@ -1336,7 +1336,7 @@ function renderProd() {
       '<td class="n">' + (r.prod ? fmtN(stockAt(r.prod, r.loc)) : '') + '</td>' +
       (r.k === 'bb1' ? '<td>' + wireCell(r, i, 'prod') + '</td><td>' + wireTag(r) + '</td><td class="n small">' + (wireParts(r.wire).length ? fmtN(Math.round(usageKg(r) * 100) / 100) : '—') + '</td>'
         : r.k === 'coil' ? '<td class="small muted" colspan="3">from BB2 "Wire used" below</td>'
-        : '<td class="small">' + esc(r.wire === '-' ? 'No wire' : r.wire || '—') + '</td><td></td><td class="n small">' + ((r.wkg || []).some(v => v > 0) ? fmtN(r3((r.wkg || []).reduce((s, v) => s + (v > 0 ? v : 0), 0))) : '—') + '</td>') +
+        : '<td class="small">' + esc(r.wire === '-' ? 'No wire' : r.wire || '—') + '</td><td></td><td class="n small">' + ((r.wkg || []).some(v => v > 0) ? fmtN(r3((r.wkg || []).reduce((s, v) => s + (v > 0 ? v : 0), 0))) : (wireParts(r.wire).length ? '<span class="muted">none given</span>' : '—')) + '</td>') +
       '<td><button class="x" title="Skip / include" data-g="prod" data-i="' + i + '" data-act="skip">' + (r.skip ? '↺' : '✕') + '</button></td></tr>';
   });
   $('prodTable').innerHTML = h + '</tbody>';
