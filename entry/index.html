@@ -86,7 +86,7 @@ body.collapsed .side-foot{text-align:center;padding:12px 4px}
 body.collapsed.ingroup #subnav{display:flex}
 #subnav button{border:1px solid var(--line);background:var(--card);padding:5px 13px;border-radius:99px;color:var(--ink);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
 #subnav button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:600}
-main{width:100%;max-width:1240px;padding:6px 28px 40px}
+main{width:100%;max-width:none;padding:6px 28px 40px}
 .tab{display:none}.tab.on{display:block}
 
 /* ── content ── */
@@ -134,9 +134,9 @@ tr.skip td{opacity:.45}
 .chip.new{border-style:dashed;color:var(--brand)}
 .newp{margin-top:6px;padding:10px;border:1px dashed var(--brand);border-radius:10px;background:var(--soft);display:grid;gap:6px}
 .newp .row input{flex:1;min-width:140px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;background:var(--card);max-width:100%}
 .seg button{border:0;background:transparent;padding:5px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink);border-right:1px solid var(--line);white-space:nowrap}
-.seg button:last-child{border-right:0}
+.seg button:last-child{border-right:0;border-radius:0 8px 8px 0}.seg button:first-child{border-radius:8px 0 0 8px}
 .seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
 .seg button small{opacity:.75;font-variant-numeric:tabular-nums}
 .seg button.short{box-shadow:inset 0 -3px 0 var(--bad)}
@@ -215,6 +215,26 @@ a.il:hover{color:var(--brand)}
 .catorder li:last-child{border-bottom:0}
 .catorder .cn{flex:1;font-weight:500}
 .catorder .grip{color:var(--muted);letter-spacing:-2px}
+
+/* ── fit any width: wide screens use the whole space; narrow / split-screen rows stack as small cards ── */
+.tw{container-type:inline-size}
+@container (max-width:1020px){
+  table.rt,table.rt tbody{display:block;width:100%}
+  table.rt thead{display:none}
+  table.rt tr{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;align-items:end;padding:12px 4px;border-bottom:1px solid var(--line)}
+  table.rt tr.grp{display:block;padding:0}
+  table.rt tr.grp td{display:block;padding:8px}
+  table.rt td{display:block;border:0;padding:0;min-width:0;text-align:left!important}
+  table.rt td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:3px}
+  table.rt td:has(.pin){grid-column:1/-1}
+  table.rt td:first-child:not(:has(.pin)){grid-column:1/-1;color:var(--muted);font-size:12px}
+  table.rt td:empty{display:none}
+  table.rt td:has(.seg){overflow-x:auto}
+  table.rt td:has([data-act=loc]){grid-column:1/-1}
+  table.rt .pin{min-width:0!important;width:100%!important}
+  table.rt td.n input.q{width:100%;max-width:140px}
+  table.rt tbody tr:hover td{background:none}
+}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 /* ===== Look v2: Plus Jakarta Sans, weldmesh background, Ocean Teal #2A9D95 ===== */
 :root{
@@ -351,7 +371,7 @@ input,select,textarea{font-weight:500}
   <div class="card">
     <h2>2 · Chainlink and barbed wire (typed from the photos)</h2>
     <p class="muted small">One line per item: machine, day / night, the name as it goes in the Excel, rolls and total kg. The wire is filled in for you and remembered. Type the kg of wire <b>given</b> from stock that day; only that is taken out of stock. Leave it blank or 0 when no new wire was given. A sum works too, e.g. <code>5.2+210.71-10.15</code>.</p>
-    <div class="tw"><table id="ptTable"></table></div>
+    <div class="tw"><table id="ptTable" class="rt"></table></div>
     <div class="row" style="margin-top:8px"><button class="b" data-ptadd="ch1">+ Chainlink M1</button><button class="b" data-ptadd="ch2">+ Chainlink M2</button><button class="b" data-ptadd="barbed">+ Barbed wire</button></div>
   </div>
   <div class="card" id="prodCard" hidden>
@@ -361,7 +381,7 @@ input,select,textarea{font-weight:500}
     <div class="checks" id="prodChecks"></div>
     <div class="row" style="margin:8px 0"><button class="b" id="prodConfirmAll">Accept all suggestions</button><span class="muted small">Names and wires you confirm are remembered for next time.</span></div>
     <h3>Into STOCK IN as Production</h3>
-    <div class="tw"><table id="prodTable"></table></div>
+    <div class="tw"><table id="prodTable" class="rt"></table></div>
     <h3 style="margin-top:16px">Wire used → STOCK OUT as Usage</h3>
     <div id="prodWires"></div>
     <div id="prodUsage" style="margin-top:12px"></div>
@@ -387,7 +407,7 @@ input,select,textarea{font-weight:500}
       <span class="muted small">Set every row to:</span>
       <span class="seg" id="loadAllLoc"><button data-l="WH">WH</button><button data-l="BB2">BB2</button><button data-l="BB1">BB1</button></span>
     </div>
-    <div class="tw"><table id="loadTable"></table></div>
+    <div class="tw"><table id="loadTable" class="rt"></table></div>
     <div class="sticky-save row"><button class="b p" id="loadSave">Save</button><button class="b" id="loadClear">Clear</button><span id="loadSaveMsg"></span></div>
   </div>
 </section>
@@ -407,7 +427,7 @@ input,select,textarea{font-weight:500}
     <div id="qMsg"></div>
   </div>
   <div class="card" id="qCard" hidden>
-    <div class="tw"><table id="qTable"></table></div>
+    <div class="tw"><table id="qTable" class="rt"></table></div>
     <div class="sticky-save row"><button class="b p" id="qSave">Save</button><button class="b" id="qClear">Clear</button><span id="qSaveMsg"></span></div>
   </div>
 </section>
@@ -427,7 +447,7 @@ input,select,textarea{font-weight:500}
     <div id="xMsg"></div>
   </div>
   <div class="card" id="xCard" hidden>
-    <div class="tw"><table id="xTable"></table></div>
+    <div class="tw"><table id="xTable" class="rt"></table></div>
     <div class="sticky-save row"><button class="b p" id="xSave">Save</button><button class="b" id="xClear">Clear</button><span id="xSaveMsg"></span></div>
   </div>
 </section>
@@ -485,7 +505,7 @@ input,select,textarea{font-weight:500}
 
 <script>
 'use strict';
-const VERSION = 'v2.0.1';
+const VERSION = 'v2.0.4';
 const SHEET_SCRIPT = 'v2.0.0';
 const DASH_URL = '../';   // the IMS Stock Dashboard (same site, one folder up)
 const LOCS = ['WH', 'BB2', 'BB1'];
@@ -969,14 +989,18 @@ const PM = (() => {
   /* ───── photo items (typed): Chainlink M1 / M2, Barbed wire ───── */
   // per-roll weight in the Excel: total ÷ rolls, rounded UP to 2 decimals (the Excel total is never below the real kg)
   const perRoll = (tot, n) => n > 0 && tot > 0 ? Math.ceil(tot / n * 100 - 1e-6) / 100 : 0;
-  // SQ.FT formula part for a chainlink name ending in  …x4x50 · …x4x15mtr · …x1.8mtrx15mtr
+  // SQ.FT formula part for a chainlink name, read after the thickness (…mm):
+  //   x4ft → 4*50 · x5ft → 5*50 · x4ftx12mtr → 4*(12/15*50) · x1.8mtr → 1.8*3.281*50 · x4x50 → 4*50
+  //   first size = height (ft, or mtr × 3.281); second = roll length (ft, or mtr × 3.281); no length = 50 ft
   function sqftExpr(name) {
-    const m = /x\s*(\d+(?:\.\d+)?)\s*(mtr|m|ft)?\s*x\s*(\d+(?:\.\d+)?)\s*(mtr|m|ft)?\s*$/i.exec(clean(name));
-    if (!m) return null;
-    const h = /^m/i.test(m[2] || '') ? '(' + m[1] + '*3.281)' : m[1];
-    const L = /^m/i.test(m[4] || '') ? '(' + m[3] + '/15*50)' : m[3];
-    const hv = /^m/i.test(m[2] || '') ? +m[1] * 3.281 : +m[1], Lv = /^m/i.test(m[4] || '') ? +m[3] / 15 * 50 : +m[3];
-    return { f: h + '*' + L, v: hv * Lv };
+    const n = clean(name).toLowerCase(), mm = [...n.matchAll(/\d(?:\.\d+)?\s*mm/g)].pop();
+    const tail = mm ? n.slice(mm.index + mm[0].length) : n;
+    const tk = [...tail.matchAll(/x\s*(\d+(?:\.\d+)?)\s*(mtr|m|ft)?/g)];
+    if (!tk.length) return null;
+    const isM = t => /^m/.test(t[2] || '');
+    const h = isM(tk[0]) ? { f: tk[0][1] + '*3.281', v: +tk[0][1] * 3.281 } : { f: tk[0][1], v: +tk[0][1] };   // height: ft, or mtr × 3.281
+    const L = !tk[1] ? { f: '50', v: 50 } : isM(tk[1]) ? { f: '(' + tk[1][1] + '/15*50)', v: +tk[1][1] / 15 * 50 } : { f: tk[1][1], v: +tk[1][1] };   // length: ft, or mtr → (L/15*50)
+    return { f: h.f + '*' + L.f, v: h.v * L.v };
   }
 
   /* ───── office Excel layout ───── */
@@ -1036,7 +1060,7 @@ const PM = (() => {
     box(r, 4); cell(r, 0, 'TOTAL BB2', 'bR'); merges.push('A' + r + ':C' + r);
     const tBB2 = r2(bb2subs.reduce((s, x) => s + x.v, 0));
     cell(r, 3, tBB2, 'big', 'SUM(' + bb2subs.map(x => 'D' + x.at).join('+') + ')'); const tBB2at = r; r++;
-    r++; box(r, 4); merges.push('A' + r + ':D' + r); r++;
+    r++; cell(r, 0, 'BARBED WIRE PRODUCTION', 'bB'); box(r, 4); merges.push('A' + r + ':D' + r); r++;
 
     // ── Barbed wire ──
     head('BARBED WIRE PRODUCTION', ['NOS', 'PER KG', 'TOTAL KG'], 'blu');
@@ -1341,13 +1365,13 @@ function renderProd() {
   });
   $('prodTable').innerHTML = h + '</tbody>';
 
-  $('prodWires').innerHTML = g.wl.length ? '<p class="muted small">BB2 "Wire used" lines from the messages.</p><div class="tw"><table><thead><tr><th>Shift</th><th>Message line</th><th>Wire</th><th></th><th class="n">Kg</th><th></th></tr></thead><tbody>' +
+  $('prodWires').innerHTML = g.wl.length ? '<p class="muted small">BB2 "Wire used" lines from the messages.</p><div class="tw"><table class="rt"><thead><tr><th>Shift</th><th>Message line</th><th>Wire</th><th></th><th class="n">Kg</th><th></th></tr></thead><tbody>' +
     g.wl.map((w, i) => '<tr class="' + (w.skip ? 'skip' : '') + '"><td>' + w.shift + '</td><td class="small">' + esc(w.raw) + '</td><td>' + wireCell(w, i, 'pw') + '</td><td>' + wireTag(w) + '</td>' +
       '<td class="n"><input class="q" data-g="pw" data-i="' + i + '" data-f="kg" value="' + (w.kg == null ? '' : w.kg) + '" inputmode="decimal"></td><td><button class="x" data-g="pw" data-i="' + i + '" data-act="skip">' + (w.skip ? '↺' : '✕') + '</button></td></tr>').join('') +
     '</tbody></table></div>' : '<p class="muted small">No BB2 "Wire used" lines in the messages.</p>';
 
   const us = prodUsage(g);
-  $('prodUsage').innerHTML = us.length ? '<div class="tw"><table><thead><tr><th>Wire</th><th>Godown</th><th class="n">Usage kg</th><th class="n">Stock now</th><th class="n">After</th><th>From</th></tr></thead><tbody>' +
+  $('prodUsage').innerHTML = us.length ? '<div class="tw"><table class="rt"><thead><tr><th>Wire</th><th>Godown</th><th class="n">Usage kg</th><th class="n">Stock now</th><th class="n">After</th><th>From</th></tr></thead><tbody>' +
     us.map(o => { const st = stockAt(o.prod, o.loc), af = r3(st - o.kg); return '<tr><td>' + esc(o.prod) + '</td><td>' + o.loc + '</td><td class="n"><b>' + fmtN(o.kg) + '</b></td><td class="n">' + fmtN(st) + '</td><td class="n"' + (af < 0 ? ' style="color:var(--bad)"' : '') + '>' + fmtN(af) + '</td><td class="small muted">' + esc([...new Set(o.from)].join(', ')) + '</td></tr>'; }).join('') +
     '</tbody><tfoot><tr><td colspan="2"><b>Total</b></td><td class="n"><b>' + fmtN(r3(us.reduce((s, o) => s + o.kg, 0))) + '</b></td><td colspan="3"></td></tr></tfoot></table></div>' : '';
   const nIn = live.filter(r => qtyOf(r) > 0).length;
@@ -2068,6 +2092,21 @@ function afterStart() {
   G.typed.forEach(t => { if (t.name) { const keep = t.wireHow === 'manual' ? t.wire : null; typedResolve(t, true); if (keep) { t.wire = keep; t.wireHow = 'manual'; } typedKg(t); } });
   if ($('pmText').value.trim()) onPmRead(); else { renderTyped(); renderProd(); }
 }
+
+/* labels for the stacked (narrow) table layout: each cell gets its column header as data-l */
+(function () {
+  let q = 0;
+  function label() {
+    q = 0;
+    document.querySelectorAll('table.rt').forEach(t => {
+      const hs = [...t.querySelectorAll('thead th')].map(h => h.textContent.trim()); if (!hs.length) return;
+      t.querySelectorAll('tbody tr').forEach(tr => { if (tr.classList.contains('grp')) return;
+        [...tr.children].forEach((td, i) => { const l = hs[i] || ''; if (td.getAttribute('data-l') !== l) td.setAttribute('data-l', l); }); });
+    });
+  }
+  new MutationObserver(() => { if (!q) q = requestAnimationFrame(label); }).observe(document.querySelector('main'), { childList: true, subtree: true });
+  label();
+})();
 </script>
 </body>
 </html>
