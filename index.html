@@ -76,12 +76,13 @@ body.collapsed .snav a{justify-content:center;padding:10px 0}
 .pill{font-size:12.5px;padding:5px 11px;border-radius:99px;background:var(--info-bg);color:var(--info);white-space:nowrap}
 .iconbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;display:grid;place-items:center}
 .iconbtn:hover{border-color:var(--brand)}
-main{width:100%;max-width:1280px;padding:4px 28px 40px}
+main{width:100%;max-width:none;padding:4px 28px 40px}
 .tab{display:none}.tab.on{display:block}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
 .card h2{font-size:15.5px;font-weight:600;margin:0 0 4px}
 .card h3{font-size:13.5px;font-weight:600;margin:16px 0 6px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row>div,.row>.seg{min-width:0;max-width:100%}
 .muted{color:var(--muted)} .small{font-size:12.5px}
 button.b{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 13px;border-radius:9px;font:inherit;font-weight:500;cursor:pointer}
 button.b:hover{border-color:var(--brand)}
@@ -101,7 +102,7 @@ tfoot td{font-weight:600;border-top:1px solid var(--line)}
 th[data-sort]{cursor:pointer;user-select:none} th[data-sort]:hover{color:var(--ink)}
 th .ar{font-size:10px;margin-left:3px}
 td.neg,.neg{color:var(--bad);font-weight:600}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card);flex-wrap:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow-x:auto;overflow-y:hidden;background:var(--card);flex-wrap:nowrap;max-width:100%;scrollbar-width:thin}
 .seg button{border:0;background:transparent;padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--ink);border-right:1px solid var(--line);white-space:nowrap}
 .seg button:last-child{border-right:0}
 .seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:600}
@@ -217,6 +218,25 @@ details.sec>.in{padding:0 18px 18px}
   .cols2{grid-template-columns:1fr}
   .hbar{grid-template-columns:110px 1fr 70px}
   details.sec>summary{padding:12px 13px} details.sec>.in{padding:0 13px 13px}
+}
+
+/* ── fit any width: wide screens use all the space; tables tighten, then stack as small cards on narrow / split screens ── */
+.tw{container-type:inline-size}
+@container (max-width:1000px){
+  .tw table{font-size:12px}
+  .tw th,.tw td{padding:6px 5px}
+  .tw th{white-space:normal;vertical-align:bottom}
+}
+@container (max-width:760px){
+  .tw table,.tw tbody,.tw tfoot{display:block;width:100%}
+  .tw thead{display:none}
+  .tw tr{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:6px 12px;padding:10px 2px;border-bottom:1px solid var(--line)}
+  .tw td{display:block;border:0;padding:0;min-width:0;text-align:left!important;overflow-wrap:anywhere}
+  .tw td[data-l]:not([data-l=""])::before{content:attr(data-l);display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:2px;overflow-wrap:normal}
+  .tw td:first-child,.tw td[colspan]{grid-column:1/-1;font-weight:600}
+  .tw td:first-child::before{display:none!important}
+  .tw td:empty{display:none}
+  .tw tbody tr:hover td{background:none}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 @media print{#side,.top .iconbtn,.noprint{display:none!important} main{max-width:none;padding:0} .card,details.sec{box-shadow:none;break-inside:avoid}}
@@ -389,7 +409,7 @@ input,select,textarea{font-weight:500}
 <script>
 'use strict';
 /* ───────── shell: login, loading the data, theme ───────── */
-const VERSION = 'v1.0.0', SHEET_SCRIPT = 'v2.0.0', ENTRY_URL = 'entry/';
+const VERSION = 'v1.0.1', SHEET_SCRIPT = 'v2.0.0', ENTRY_URL = 'entry/';
 const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbws7kmv6v4aR-UvP22BTQS7DtoMMFbrv4aKdbseCPuthXisC3wI7e9U-SOWMU_uDng/exec';
 const SESS_KEY = 'ims.session', URL_KEY = 'ims.url', CACHE_KEY = 'imsDash.cache';
 const $$ = id => document.getElementById(id);
@@ -1122,6 +1142,21 @@ let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() 
 setRole(ROLE0);
 }
 startShell();   // after startApp exists
+
+/* labels for the stacked (narrow) table layout: each cell gets its column header as data-l */
+(function () {
+  let q = 0;
+  function label() {
+    q = 0;
+    document.querySelectorAll('.tw table').forEach(t => {
+      const hs = [...t.querySelectorAll('thead th')].map(h => { const c = h.cloneNode(true); c.querySelectorAll('.ar').forEach(x => x.remove()); return c.textContent.trim(); }); if (!hs.length) return;
+      t.querySelectorAll('tbody tr, tfoot tr').forEach(tr => { if (tr.firstElementChild && tr.firstElementChild.hasAttribute('colspan')) return;
+        [...tr.children].forEach((td, i) => { const l = hs[i] || ''; if (td.getAttribute('data-l') !== l) td.setAttribute('data-l', l); }); });
+    });
+  }
+  new MutationObserver(() => { if (!q) q = requestAnimationFrame(label); }).observe(document.querySelector('main'), { childList: true, subtree: true });
+  label();
+})();
 </script>
 </body>
 </html>
